@@ -1,0 +1,178 @@
+interface EventsInterface {
+  beacon_domain: string;
+  event_name: string;
+  fastpix_embed?: string;
+  fastpix_embed_version?: string;
+  fastpix_sample_number?: string;
+  fastpix_sample_rate?: number;
+  fastpix_viewer_id?: string;
+  fastpix_view_message?: string;
+  page_load_time: number;
+  player_startup_time: number;
+  player_autoplay_on?: boolean;
+  player_error_code?: number;
+  player_error_context?: string;
+  player_error_message?: string;
+  player_fastpix_sdk_name?: string;
+  player_fastpix_sdk_version?: string;
+  player_is_fullscreen?: boolean;
+  player_height?: number;
+  player_instance_id: string;
+  player_language?: string;
+  player_name?: string;
+  player_is_paused?: boolean;
+  player_playhead_time: number;
+  player_poster_url?: string;
+  player_preload_on?: boolean;
+  player_sequence_number: number;
+  player_software_name?: string;
+  player_software_version?: string;
+  player_view_count?: number;
+  player_width?: number;
+  request_bytes_loaded?: number;
+  request_hostname?: string;
+  request_response_headers?: {};
+  request_start?: number;
+  request_type?: string;
+  request_url?: string;
+  request_response_end?: number;
+  request_response_start?: number;
+  request_event_type?: string;
+  request_error_code?: number | string;
+  request_error_message?: string;
+  request_video_height?: number;
+  request_video_width?: number;
+  session_expiry_time: number;
+  session_id?: string;
+  session_start?: string;
+  user_device_category?: string;
+  view_avg_request_throughput?: number;
+  view_content_playback_time?: number;
+  view_dropped_frame_count?: number | null;
+  view_end_time?: number;
+  view_time_to_first_frame?: number;
+  view_total_content_playback_time?: number;
+  view_id: string;
+  view_average_request_latency?: number;
+  view_max_request_latency?: number;
+  view_max_playhead_position?: number;
+  view_max_downscaling_percentage?: number;
+  view_max_upscaling_percentage?: number;
+  view_min_request_throughput?: number;
+  view_page_url?: string;
+  view_rebuffer_count?: number;
+  view_seek_count?: number;
+  view_seek_duration?: number;
+  view_max_seeek_time?: number;
+  view_sequence_number: number;
+  view_start_time?: number;
+  view_rebuffer_duration?: number;
+  view_rebuffer_frequency?: number;
+  view_rebuffer_percentage?: number;
+  view_request_count?: number;
+  view_total_downscaling?: number;
+  view_total_upscaling?: number;
+  view_watch_time?: number;
+  viewer_id?: string;
+  viewer_timestamp: number;
+  video_cdn?: string;
+  video_is_fullscreen?: boolean;
+  video_series?: string;
+  video_source_bitrate?: number;
+  video_source_codec?: string;
+  video_source_domain?: string;
+  video_source_duration?: number | null;
+  video_source_fps?: number;
+  video_source_height?: number;
+  video_source_hostname?: string;
+  video_source_live: boolean;
+  video_source_url?: string;
+  view_aggregate_startup_time?: number;
+}
+
+interface UserCustomDataType {
+  workspace_id?: string;
+  video_id?: string;
+  video_title?: string;
+  viewer_id?: string;
+  experiment_name?: string;
+  page_context?: string;
+  player_init_time?: number;
+  player_name?: string;
+  player_version?: string;
+  sub_property_id?: string;
+  video_cdn?: string;
+  video_content_type?: string;
+  video_drm_type?: string;
+  video_duration?: string;
+  video_encoding_variant?: string;
+  video_language_code?: string;
+  video_producer?: string;
+  video_series?: string;
+  video_stream_type?: string;
+  video_variant_name?: string;
+  video_variant_id?: string;
+  view_session_id?: string;
+  custom_1?: string;
+  custom_2?: string;
+  custom_3?: string;
+  custom_4?: string;
+  custom_5?: string;
+  custom_6?: string;
+  custom_7?: string;
+  custom_8?: string;
+  custom_9?: string;
+  custom_10?: string;
+}
+
+interface OverrideableMetaData {
+  browser?: string;
+  browser_version?: string;
+  cdn?: string;
+  os_name?: string;
+  os_version?: string;
+  page_url?: string;
+  player_autoplay_on?: boolean;
+  player_height?: string;
+  player_instance_id?: string;
+  player_language_code?: string;
+  video_poster_url?: string;
+  player_preload_on?: string;
+  player_remote_played?: boolean;
+  player_software_name?: string;
+  player_software_version?: string;
+  video_source_height?: string;
+  video_source_width?: string;
+  player_width?: string;
+  video_source_type?: string;
+  player_is_fullscreen?: boolean;
+  viewer_connection_type?: string;
+  device_manufacturer?: string;
+  device_category?: string;
+  device_model?: string;
+  device_name?: string;
+}
+
+interface EventMetaData extends EventsInterface, UserCustomDataType {}
+
+interface EventData extends UserCustomDataType, OverrideableMetaData {}
+
+interface ActionableDataTypes {
+  beaconDomain?: string | undefined;
+  errorConverter?: any;
+  disablePlayheadRebufferTracking?: boolean;
+  allowRebufferTracking?: boolean;
+  configDomain?: string;
+  actionableData?: any;
+  fetchPlayheadTime?: () => any;
+  fetchStateData?: () => any;
+  automaticErrorTracking?: boolean;
+  data?: EventData;
+  debug?: boolean;
+  sampleRate?: string | number;
+  disableCookies?: boolean;
+  respectDoNotTrack?: boolean;
+  beaconCollectionDomain?: string;
+}
+
+export type { EventMetaData, EventData, ActionableDataTypes };

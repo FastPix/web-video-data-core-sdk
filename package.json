@@ -1,0 +1,32 @@
+{
+  "name": "@fastpix/video-data-core",
+  "version": "1.0.0",
+  "author": "FastPix, Inc",
+  "license": "MIT",
+  "description": "FastPix Video Data SDK for real-time monitoring of HTML5 video players.",
+  "main": "dist/index.js",
+  "files": [
+    "dist/*"
+  ],
+  "exports": {
+    "import": "./dist/index.mjs",
+    "require": "./dist/index.cjs",
+    "default": "./dist/index.js"
+  },
+  "scripts": {
+    "format": "prettier --write \"src/**/*.ts\"",
+    "build:esm": "esbuild src/index.ts --bundle --outfile=dist/index.mjs --format=esm --minify",
+    "build:cjs": "esbuild src/index.ts --bundle --outfile=dist/index.cjs --format=cjs --minify",
+    "build:js": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=iife --minify",
+    "build": "npm run format && npm run build:esm && npm run build:cjs && npm run build:js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "esbuild": "^0.24.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "uuid": "^11.0.5"
+  }
+}
