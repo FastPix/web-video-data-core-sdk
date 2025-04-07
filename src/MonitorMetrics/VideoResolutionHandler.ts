@@ -72,11 +72,11 @@ export class VideoResolutionHandler {
         const minScale = Math.max(0, 1 - minValue);
 
         scaler.data.view_max_upscale_percentage = Math.max(
-          scaler.data.view_max_upscale_percentage || 0,
+          scaler.data.view_max_upscale_percentage ?? 0,
           maxScale,
         );
         scaler.data.view_max_downscale_percentage = Math.max(
-          scaler.data.view_max_downscale_percentage || 0,
+          scaler.data.view_max_downscale_percentage ?? 0,
           minScale,
         );
         scaler.data["view_total_content_playback_time"] =

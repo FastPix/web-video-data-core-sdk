@@ -34,13 +34,11 @@ export class WallClockTimeTracker {
 
     if (this.lastTrackedWallClockTime === null) {
       this.lastTrackedWallClockTime = currentTime;
-    } else {
-      if (currentTime) {
-        const timeElapsed = currentTime - this.lastTrackedWallClockTime;
-        timer.data["view_watch_time"] =
-          (timer.data["view_watch_time"] ?? 0) + timeElapsed;
-        this.lastTrackedWallClockTime = currentTime;
-      }
+    } else if (currentTime) {
+      const timeElapsed = currentTime - this.lastTrackedWallClockTime;
+      timer.data["view_watch_time"] =
+        (timer.data["view_watch_time"] ?? 0) + timeElapsed;
+      this.lastTrackedWallClockTime = currentTime;
     }
   }
 

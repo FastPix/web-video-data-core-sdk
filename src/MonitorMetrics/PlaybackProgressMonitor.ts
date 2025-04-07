@@ -1,5 +1,4 @@
-import { metricUpdation } from "../CommonMethods/index";
-import { timestamp } from "../CommonMethods/index";
+import { metricUpdation, timestamp } from "../CommonMethods/index";
 
 type Emitter = {
   on: (event: string, callback: (...args: any[]) => void) => void;

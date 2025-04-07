@@ -4,9 +4,9 @@ import {
   metricUpdation,
   getDomainName,
   getHostName,
+  customTimerModule,
+  ListenerManager,
 } from "../CommonMethods/index";
-import { customTimerModule } from "../CommonMethods/index";
-import { ListenerManager } from "../CommonMethods/index";
 import { buildUUID } from "../IdGenerationMethod/index";
 import { createTimerWorker, inlineWorkerText } from "../Worker/index";
 import { BufferMonitor, BufferProcessor } from "./VideoBufferMonitor";
@@ -51,34 +51,26 @@ function nucleusState(
   fileInstance.fp = self;
   fileInstance.id = token;
   const defaultConfig = {
-    debug: actionableData?.debug ? actionableData?.debug : false,
-    beaconDomain: actionableData.configDomain
-      ? actionableData.configDomain
-      : "metrix.ws",
+    debug: actionableData?.debug ?? false,
+    beaconDomain: actionableData.configDomain ?? "metrix.ws",
     sampleRate: 1,
-    disableCookies: actionableData.disableCookies
-      ? actionableData.disableCookies
-      : false,
-    respectDoNotTrack: actionableData.respectDoNotTrack
-      ? actionableData.respectDoNotTrack
-      : false,
+    disableCookies: actionableData.disableCookies ?? false,
+    respectDoNotTrack: actionableData.respectDoNotTrack ?? false,
     allowRebufferTracking: false,
     disablePlayheadRebufferTracking: false,
     errorConverter: function (errAttr: any) {
       return errAttr;
     },
   };
-  actionableData = Object.assign(
-    {
-      actionableData,
-    },
-    defaultConfig,
-  );
+  actionableData = {
+    actionableData,
+    ...defaultConfig,
+  };
   fileInstance.userConfigData = actionableData;
   fileInstance.fetchPlayheadTime =
     actionableData.actionableData.fetchPlayheadTime;
   fileInstance.fetchStateData =
-    actionableData.actionableData.fetchStateData ||
+    actionableData.actionableData.fetchStateData ??
     function () {
       return {};
     };
@@ -95,7 +87,7 @@ function nucleusState(
     player_instance_id: buildUUID(),
     fastpix_sample_rate: actionableData.sampleRate,
     beacon_domain:
-      actionableData.beaconCollectionDomain || actionableData.beaconDomain,
+      actionableData.beaconCollectionDomain ?? actionableData.beaconDomain,
   };
   fileInstance.data.view_sequence_number = 1;
   fileInstance.data.player_sequence_number = 1;
@@ -163,11 +155,15 @@ function nucleusState(
         fileInstance.lastCheckedEventTime = currentTime;
       }
     }
-    fileInstance.appendVideoState();
-    const eventPayload = Object.assign(
-      { viewer_timestamp: fileInstance.fp.utilityMethods.now() },
-      eventData,
-    );
+
+    if (mapEvents.includes(name)) {
+      this.appendVideoState();
+    }
+
+    const eventPayload = {
+      viewer_timestamp: fileInstance.fp.utilityMethods.now(),
+      ...eventData,
+    };
 
     if (name !== "videoChange" && name !== "programChange") {
       Object.assign(fileInstance.data, eventPayload);
@@ -213,7 +209,7 @@ function nucleusState(
   });
 
   eventEmitter.on("programChange", function (newdata: ActionableDataTypes) {
-    const onProgramChange = Object.assign({}, newdata);
+    const onProgramChange = { ...newdata };
     onViewChange(onProgramChange);
     fileInstance.dispatch("play");
     fileInstance.dispatch("playing");
@@ -273,7 +269,7 @@ function nucleusState(
   }) {
     if (!fileInstance.resolutionState) {
       fileInstance.resolutionState = {
-        prev_source_width: fileInstance.data.video_source_width || 0,
+        prev_source_width: fileInstance.data.video_source_width ?? 0,
         video_source_resolution_dropped_count: 0,
       };
       fileInstance.data.video_source_resolution_dropped_count = 0;
@@ -322,13 +318,13 @@ function nucleusState(
 
     if (fileInstance.NavigationStart) {
       if (
-        fileInstance.data.player_init_time ||
+        fileInstance.data.player_init_time ??
         customTimerModule.getDomContentLoadedEnd()
       ) {
         const pageLoadTime =
           Math.min(
-            fileInstance.data.player_init_time || 1 / 0,
-            customTimerModule.getDomContentLoadedEnd() || 1 / 0,
+            fileInstance.data.player_init_time ?? 1 / 0,
+            customTimerModule.getDomContentLoadedEnd() ?? 1 / 0,
           ) - fileInstance.NavigationStart;
         fileInstance.data.page_load_time = pageLoadTime > 0 ? pageLoadTime : 0;
       }
@@ -383,10 +379,10 @@ nucleusState.prototype.validateData = function () {
   ];
   const urlKeys = ["player_source_url", "video_source_url"];
   numericalKeys.forEach(
-    (key) => (this.data[key] = parseInt(this.data[key], 10) || undefined),
+    (key) => (this.data[key] = parseInt(this.data[key], 10) ?? undefined),
   );
   urlKeys.forEach((paramName) => {
-    const excludes = (this.data[paramName] || "").toLowerCase();
+    const excludes = (this.data[paramName] ?? "").toLowerCase();
 
     if (excludes.startsWith("data:") || excludes.startsWith("blob:")) {
       this.data[paramName] = "MSE style URL";
@@ -403,20 +399,19 @@ nucleusState.prototype.filterData = function (str: string) {
       this.data.video_source_duration > 0
     ) {
       this.data.video_source_is_live = false;
-    } else {
-      if (this.data.video_source_duration === void 0) {
-        this.data.video_source_is_live = true;
-      }
+    } else if (this.data.video_source_duration === void 0) {
+      this.data.video_source_is_live = true;
     }
+
     const videoSourceUrl =
-      this.data.video_source_url || this.data.player_source_url;
+      this.data.video_source_url ?? this.data.player_source_url;
 
     if (videoSourceUrl) {
       this.data.video_source_domain = getDomainName(videoSourceUrl);
       this.data.video_source_hostname = getHostName(videoSourceUrl);
     }
 
-    const updatedata = Object.assign({ ...this.data });
+    const updatedata = { ...this.data };
     this.eventsDispatcher.sendData(str, updatedata);
     this.data.view_sequence_number++;
     this.data.player_sequence_number++;

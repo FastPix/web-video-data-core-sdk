@@ -49,7 +49,7 @@ export class PlayheadPositionHandler {
   }
 
   handleCurrentPosition(playheadTimer: { player_playhead_time?: number }) {
-    if (playheadTimer && playheadTimer.player_playhead_time !== undefined) {
+    if (playheadTimer?.player_playhead_time !== undefined) {
       this.timer.data.player_playhead_time = playheadTimer.player_playhead_time;
       this.handleMaxPosition();
     } else if (this.timer.fetchPlayheadTime) {

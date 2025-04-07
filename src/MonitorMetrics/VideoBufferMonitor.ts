@@ -1,15 +1,15 @@
 // Define types for data and parameters used in the classes
 interface BufferData {
-  view_rebuffer_count?: number | any;
-  view_rebuffer_duration?: number | any;
-  view_watch_time?: number | any;
+  view_rebuffer_count?: number;
+  view_rebuffer_duration?: number;
+  view_watch_time?: number;
   view_rebuffer_frequency?: number | null;
   view_rebuffer_percentage?: number;
   player_playhead_time: number;
 }
 
 interface Params {
-  disablePlayheadRebufferTracking: any;
+  disablePlayheadRebufferTracking: boolean;
   allowRebufferTracking?: boolean;
   data: BufferData;
   userConfigData?: {
@@ -67,7 +67,7 @@ class BufferProcessor {
   handleBufferingStart(data: ViewerData) {
     if (!this.startTimer) {
       this.params.data.view_rebuffer_count =
-        (this.params.data.view_rebuffer_count || 0) + 1;
+        (this.params.data.view_rebuffer_count ?? 0) + 1;
       this.startTimer = data.viewer_timestamp;
     }
   }
@@ -81,7 +81,7 @@ class BufferProcessor {
     if (this.startTimer) {
       const timeDiff = timer.viewer_timestamp - this.startTimer;
       this.params.data.view_rebuffer_duration =
-        (this.params.data.view_rebuffer_duration || 0) + timeDiff;
+        (this.params.data.view_rebuffer_duration ?? 0) + timeDiff;
       this.startTimer = timer.viewer_timestamp;
 
       if (this.params.data.view_rebuffer_duration > 300000) {
@@ -89,14 +89,23 @@ class BufferProcessor {
       }
     }
 
-    if (this.params.data.view_watch_time >= 0) {
-      if (this.params.data.view_rebuffer_count > 0) {
+    if (
+      this.params.data.view_watch_time &&
+      this.params.data.view_watch_time >= 0
+    ) {
+      if (
+        this.params.data.view_rebuffer_count &&
+        this.params.data.view_rebuffer_count > 0
+      ) {
         this.params.data.view_rebuffer_frequency =
           this.params.data.view_rebuffer_count /
           this.params.data.view_watch_time;
-        this.params.data.view_rebuffer_percentage =
-          this.params.data.view_rebuffer_duration /
-          this.params.data.view_watch_time;
+
+        if (this.params.data.view_rebuffer_duration) {
+          this.params.data.view_rebuffer_percentage =
+            this.params.data.view_rebuffer_duration /
+            this.params.data.view_watch_time;
+        }
       }
     }
   }
@@ -168,7 +177,7 @@ class BufferMonitor {
     }
 
     if (this.isPlayheadStuck()) {
-      const elapsed = data.viewer_timestamp - (this.lastUpdatedTime || 0);
+      const elapsed = data.viewer_timestamp - (this.lastUpdatedTime ?? 0);
       if (elapsed >= 1000 && !this.isWaiting) {
         this.triggerBuffering(data);
       }
@@ -215,7 +224,7 @@ class BufferMonitor {
     }
 
     if (reset) {
-      this.startBuffering(data?.viewer_timestamp || 0);
+      this.startBuffering(data?.viewer_timestamp ?? 0);
     } else {
       this.clearBufferingState();
     }
@@ -230,9 +239,9 @@ class BufferMonitor {
 
   hasSignificantProgress(data: ViewerData | undefined): boolean {
     const playheadDifference =
-      this.waiter.data.player_playhead_time - (this.lastPlayheadTime || 0);
+      this.waiter.data.player_playhead_time - (this.lastPlayheadTime ?? 0);
     const viewerTimeDifference =
-      (data?.viewer_timestamp || 0) - (this.lastUpdatedTime || 0);
+      (data?.viewer_timestamp ?? 0) - (this.lastUpdatedTime ?? 0);
     return (
       playheadDifference > 0 && viewerTimeDifference - playheadDifference > 250
     );
@@ -240,15 +249,15 @@ class BufferMonitor {
 
   recalibrateBuffering(data: ViewerData | undefined) {
     const playheadDifference =
-      this.waiter.data.player_playhead_time - (this.lastPlayheadTime || 0);
+      this.waiter.data.player_playhead_time - (this.lastPlayheadTime ?? 0);
     const viewerTimeDifference =
-      (data?.viewer_timestamp || 0) - (this.lastUpdatedTime || 0);
+      (data?.viewer_timestamp ?? 0) - (this.lastUpdatedTime ?? 0);
     this.waiter.dispatch("buffering", {
       viewer_timestamp: this.lastUpdatedTime,
     });
     this.waiter.dispatch("buffered", {
       viewer_timestamp:
-        (this.lastUpdatedTime || 0) + viewerTimeDifference - playheadDifference,
+        (this.lastUpdatedTime ?? 0) + viewerTimeDifference - playheadDifference,
     });
     this.lastCheckedTime = null;
   }

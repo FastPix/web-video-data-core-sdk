@@ -37,7 +37,8 @@ export class ErrorManager {
           errorInfo.player_error_message ||
           errorInfo.player_error_context
         ) {
-          this.accuracy.data.player_error_code = errorInfo.player_error_code ?? "";
+          this.accuracy.data.player_error_code =
+            errorInfo.player_error_code ?? "";
           this.accuracy.data.player_error_message =
             errorInfo.player_error_message ?? "";
           this.accuracy.data.player_error_context =

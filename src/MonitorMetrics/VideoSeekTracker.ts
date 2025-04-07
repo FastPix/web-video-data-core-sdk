@@ -1,5 +1,4 @@
-import { metricUpdation } from "../CommonMethods/index";
-import { timestamp } from "../CommonMethods/index";
+import { metricUpdation, timestamp } from "../CommonMethods/index";
 
 interface SeekData {
   viewer_timestamp: number;
@@ -75,12 +74,12 @@ export class VideoSeekTracker {
   seeker(): void {
     const seekerTime: number = timestamp.now();
     const last: number =
-      (this.dragger.data.viewer_timestamp || seekerTime) -
-      (this.seekerElapsedTime || seekerTime);
+      (this.dragger.data.viewer_timestamp ?? seekerTime) -
+      (this.seekerElapsedTime ?? seekerTime);
 
     metricUpdation(this.dragger.data, "view_seek_duration", last);
     this.dragger.data.view_max_seek_time = Math.max(
-      this.dragger.data.view_max_seek_time || 0,
+      this.dragger.data.view_max_seek_time ?? 0,
       last,
     );
     this.videoDragged = false;

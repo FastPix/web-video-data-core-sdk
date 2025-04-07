@@ -153,12 +153,36 @@ interface OverrideableMetaData {
   device_name?: string;
 }
 
-interface EventMetaData extends EventsInterface, UserCustomDataType {}
+interface EventMetaData extends EventsInterface, UserCustomDataType {
+  debug: any;
+  fetchStateData: () => {
+    player_is_paused: any;
+    player_width: any;
+    player_height: any;
+    player_autoplay_on: any;
+    player_preload_on: boolean;
+    player_is_fullscreen: boolean;
+    video_source_height: any;
+    video_source_width: any;
+    video_source_url: any;
+    video_source_domain: string | undefined;
+    video_source_hostname: string | undefined;
+    video_source_duration: number;
+    video_poster_url: any;
+    player_language_code: any;
+    view_dropped_frame_count: any;
+  };
+  fetchPlayheadTime: () => number;
+  data: any;
+  automaticErrorTracking: any;
+  Hls: any;
+  hlsjs: any;
+}
 
 interface EventData extends UserCustomDataType, OverrideableMetaData {}
 
 interface ActionableDataTypes {
-  beaconDomain?: string | undefined;
+  beaconDomain?: string;
   errorConverter?: any;
   disablePlayheadRebufferTracking?: boolean;
   allowRebufferTracking?: boolean;

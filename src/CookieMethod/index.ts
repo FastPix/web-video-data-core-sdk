@@ -5,11 +5,13 @@ const cookieName = "FastPixData";
 // Get cookie from browser
 const getCookie = function (name: string) {
   const cookies = document.cookie.split(";");
-  for (let i = 0; i < cookies.length; i++) {
-    const cookie = cookies[i].trim();
+  for (const cookie of cookies) {
+    const trimmedCookie = cookie.trim();
 
-    if (cookie.startsWith(name + "=")) {
-      const cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+    if (trimmedCookie.startsWith(name + "=")) {
+      const cookieValue = decodeURIComponent(
+        trimmedCookie.substring(name.length + 1),
+      );
       const values: any = {};
       const keyValuePairs = cookieValue.split("&");
       keyValuePairs.forEach((pair) => {
@@ -33,7 +35,7 @@ const setCookie = (name: string, value: string, days: number): void => {
 // Get viewer data from the cookie
 const getViewerData = (): Record<string, any> => {
   const cookieValue = getCookie(cookieName);
-  return cookieValue ? cookieValue : {};
+  return cookieValue ?? {};
 };
 
 // Update viewer data in the cookie

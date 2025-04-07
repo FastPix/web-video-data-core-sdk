@@ -166,7 +166,7 @@ const eventKeyMappings: { [key: string]: string } = {
   "workspace": "ws",
 };
 
-export const formatEventData = function (events: EventMetaData | any): {
+export const formatEventData = function (events: EventMetaData): {
   [key: string]: any;
 } {
   let formattedEventData: { [key: string]: any } = {};
@@ -178,16 +178,15 @@ export const formatEventData = function (events: EventMetaData | any): {
     eventKeyParts.forEach((each) => {
       if (eventKeyMappings[each]) {
         mappedKey += eventKeyMappings[each];
+      } else if (Number(each) && Math.floor(Number(each)) === Number(each)) {
+        mappedKey += each;
       } else {
-        if (Number(each) && Math.floor(Number(each)) === Number(each)) {
-          mappedKey += each;
-        } else {
-          console.warn(`Unexpected use of data keyword ${each} in ${eventKey}`);
-          mappedKey += "_" + each + "_";
-        }
+        console.warn(`Unexpected use of data keyword ${each} in ${eventKey}`);
+        mappedKey += `_${each}_`;
       }
     });
 
+    // @ts-ignore
     formattedEventData[mappedKey] = events[eventKey];
   }
 

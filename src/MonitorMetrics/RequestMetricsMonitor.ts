@@ -47,15 +47,15 @@ export class RequestMetricsMonitor {
   }
 
   handleRequestCompleted(reqData: RequestData): void {
-    const requestStart: number = reqData?.request_start || 0;
-    const responseStart: number = reqData?.request_response_start || 0;
-    const responseEnd: number = reqData?.request_response_end || 0;
-    const loadedBytes: number = reqData?.request_bytes_loaded || 0;
+    const requestStart: number = reqData?.request_start ?? 0;
+    const responseStart: number = reqData?.request_response_start ?? 0;
+    const responseEnd: number = reqData?.request_response_end ?? 0;
+    const loadedBytes: number = reqData?.request_bytes_loaded ?? 0;
 
     this.requestCount++;
 
     const latency = responseStart - requestStart;
-    const duration = responseEnd - (responseStart || requestStart);
+    const duration = responseEnd - (responseStart ?? requestStart);
 
     if (duration > 0 && loadedBytes > 0) {
       this.processedChunks++;
@@ -64,7 +64,7 @@ export class RequestMetricsMonitor {
 
       const throughput = (loadedBytes / duration) * 8000;
       this.req.data.view_min_request_throughput = Math.min(
-        this.req.data.view_min_request_throughput || Infinity,
+        this.req.data.view_min_request_throughput ?? Infinity,
         throughput,
       );
       this.req.data.view_avg_request_throughput =
@@ -74,7 +74,7 @@ export class RequestMetricsMonitor {
       if (latency > 0) {
         this.totalLatency += latency;
         this.req.data.view_max_request_latency = Math.max(
-          this.req.data.view_max_request_latency || 0,
+          this.req.data.view_max_request_latency ?? 0,
           latency,
         );
         this.req.data.view_avg_request_latency =

@@ -2,6 +2,7 @@ import {
   checkDoNotTrack,
   formulateBeaconUrl,
   mergeObjects,
+  getNetworkConnection,
 } from "../CommonMethods/index";
 import {
   getViewerCookie,
@@ -10,13 +11,10 @@ import {
 } from "../CookieMethod/index";
 import { EventMetaData, ActionableDataTypes } from "../DataType/index";
 import { buildUUID } from "../IdGenerationMethod/index";
-import { getNetworkConnection } from "../CommonMethods/index";
 import { ConnectionHandler } from "../ConnectionHandler/index";
 import { formatEventData } from "../SplitDataParameters/index";
 
 interface SDKPageDetails {
-  fastpix_embed: string;
-  fastpix_embed_version: string;
   viewer_connection_type: string | undefined;
   page_url: string;
 }
@@ -41,6 +39,23 @@ const keyParams = [
   "video_id",
   "player_instance_id",
 ];
+const videoStateKeys = [
+  "player_is_paused",
+  "player_width",
+  "player_height",
+  "player_autoplay_on",
+  "player_preload_on",
+  "player_is_fullscreen",
+  "video_source_height",
+  "video_source_width",
+  "video_source_url",
+  "video_source_domain",
+  "video_source_hostname",
+  "video_source_duration",
+  "video_poster_url",
+  "player_language_code",
+  "view_dropped_frame_count",
+];
 const eventHandler = ["viewBegin", "error", "ended", "viewCompleted"];
 let previousVideoState: any = {};
 
@@ -52,7 +67,7 @@ export class PlaybackEventHandler {
   disableCookies: boolean;
   respectDoNotTrack: boolean;
   eventQueue: ConnectionHandler;
-  previousBeaconData: EventMetaData | null;
+  previousBeaconData: EventMetaData | null | Record<string, string>;
   sdkPageDetails: SDKPageDetails;
   userData: CookieDataTypes | Object;
   debug: boolean;
@@ -60,7 +75,7 @@ export class PlaybackEventHandler {
   constructor(self = {}, tokenId = "", data: ActionableDataTypes = {}) {
     this.fp = self;
     this.tokenId = tokenId;
-    this.actionableData = data || {};
+    this.actionableData = data ?? {};
     this.debug = this.actionableData?.debug ?? false;
     this.sampleRate = this.actionableData?.sampleRate ?? 1;
     this.disableCookies = this.actionableData?.disableCookies ?? false;
@@ -71,8 +86,6 @@ export class PlaybackEventHandler {
     );
     this.previousBeaconData = null;
     this.sdkPageDetails = {
-      fastpix_embed: "fastpix-core",
-      fastpix_embed_version: "1.0.0",
       viewer_connection_type: getNetworkConnection(),
       page_url: window?.location?.href ?? "",
     };
@@ -80,71 +93,76 @@ export class PlaybackEventHandler {
   }
 
   sendData(event: string, obj: EventMetaData): void {
-    if (event && obj && obj.view_id) {
-      if (this.respectDoNotTrack && checkDoNotTrack()) {
-        if (this.debug) {
-          return console.warn(
-            `The ${event} won't be sent due to the enabled Do Not Track feature.`,
-          );
-        } else {
-          return;
-        }
-      }
+    if (!event || !obj?.view_id) return;
 
-      if (!obj || typeof obj !== "object") {
-        if (this.debug) {
-          return console.error(
-            "The send() function requires a data object, and it was not supplied as expected.",
-          );
-        } else {
-          return;
-        }
-      }
-
-      const cookieUpdater = this.disableCookies ? {} : this.updateCookies();
-      const data = mergeObjects(
-        this.sdkPageDetails,
-        obj,
-        cookieUpdater,
-        this.userData,
-        {
-          event_name: event,
-          workspace_id: this.tokenId,
-        },
+    if (this.shouldRespectDoNotTrack(event)) return;
+    if (!this.validateEventData(obj)) return;
+    if (
+      !this.tokenId &&
+      this.debug &&
+      !this.actionableData?.actionableData?.beaconCollectionDomain
+    ) {
+      console.warn(
+        "Missing workspace id (workspaceId) - beacons will be dropped",
+        event,
       );
-      const filterData = formatEventData(this.cloneBeaconData(event, data));
-
-      if (
-        !this.tokenId &&
-        this.debug &&
-        !this.actionableData?.actionableData?.beaconCollectionDomain
-      ) {
-        console.warn(
-          "Missing workspace id (workspaceId) - beacons will be dropped",
-          event,
-          data,
-          filterData,
-        );
-      } else {
-        if (this.tokenId) {
-          this.eventQueue.scheduleEvent(filterData);
-
-          if (event === "viewCompleted") {
-            this.eventQueue.destroy(true);
-          } else if (eventHandler.indexOf(event) >= 0) {
-            this.eventQueue.processEventQueue();
-          }
-        }
-      }
+      return;
     }
+    const data = this.prepareEventData(event, obj);
+    this.eventQueue.scheduleEvent(data);
+
+    if (event === "viewCompleted") {
+      this.eventQueue.destroy(true);
+    } else if (eventHandler.includes(event)) {
+      this.eventQueue.processEventQueue();
+    }
+  }
+
+  shouldRespectDoNotTrack(event: string): boolean {
+    if (this.respectDoNotTrack && checkDoNotTrack()) {
+      if (this.debug) {
+        console.warn(
+          `The ${event} won't be sent due to the enabled Do Not Track feature.`,
+        );
+      }
+      return true;
+    }
+    return false;
+  }
+
+  validateEventData(obj: EventMetaData): boolean {
+    if (!obj || typeof obj !== "object") {
+      if (this.debug) {
+        console.error(
+          "The send() function requires a data object, and it was not supplied as expected.",
+        );
+      }
+      return false;
+    }
+    return true;
+  }
+
+  prepareEventData(event: string, obj: EventMetaData) {
+    const cookieUpdater = this.disableCookies ? {} : this.updateCookies();
+    const data = mergeObjects(
+      this.sdkPageDetails,
+      obj,
+      cookieUpdater,
+      this.userData,
+      {
+        event_name: event,
+        workspace_id: this.tokenId,
+      },
+    );
+    return formatEventData(this.cloneBeaconData(event, data));
   }
 
   destroy(): void {
     this.eventQueue.destroy(false);
   }
 
-  cloneBeaconData(eventname: string, dataobj: any): EventMetaData | any | null {
-    let clonedObj: EventMetaData | any | null = {};
+  cloneBeaconData(eventname: string, dataobj: any): EventMetaData {
+    let clonedObj: Record<string, string> = {};
 
     if (eventname === "viewBegin" || eventname === "viewCompleted") {
       clonedObj = Object.assign(clonedObj, dataobj);
@@ -179,6 +197,20 @@ export class PlaybackEventHandler {
       this.previousBeaconData = clonedObj;
     }
 
+    if (eventname === "viewCompleted") {
+      const updatedClonedObj: any = {};
+      const shadowState = Object.keys(clonedObj);
+      shadowState.forEach((key) => {
+        if (!videoStateKeys.includes(key)) {
+          updatedClonedObj[key] = clonedObj[key];
+        }
+      });
+      this.previousBeaconData = updatedClonedObj;
+
+      return updatedClonedObj;
+    }
+
+    // @ts-ignore
     return clonedObj;
   }
 

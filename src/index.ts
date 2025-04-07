@@ -8,10 +8,10 @@ import {
   utilityMethods,
   getRequestTimingDetails,
 } from "./CommonMethods/index";
-import { EventData, EventMetaData } from "./DataType/index";
+import { EventMetaData } from "./DataType/index";
 import { nucleusState } from "./MonitorMetrics/index";
 
-const contextState: any = {};
+const contextState: Record<string, string> = {};
 const html5VideoEvents: string[] = [
   "loadstart",
   "pause",
@@ -32,13 +32,12 @@ const browserErrors: any = {
 };
 
 const fastpixMetrix = {
-  tracker: function (videoTag: any, userData: any) {
+  tracker: function (videoTag: any, userData: EventMetaData) {
     const videoParams = analyzeVideo(videoTag);
-    const videoContainer: HTMLVideoElement | any = videoParams[0];
-    const videoId: string | any = videoParams[1];
+    const videoContainer = videoParams[0];
     const videoString = videoParams[2];
     const hlstag = userData.hlsjs;
-    const hlsPlayer: any = userData.Hls || (window as any).Hls;
+    const hlsPlayer: any = userData.Hls ?? (window as any).Hls;
     const targetObject = this;
 
     if (!videoContainer) {
@@ -51,24 +50,23 @@ const fastpixMetrix = {
 
     if ("video" !== videoString && "audio" !== videoString) {
       return console.error(
-        "The specified element with ID " +
-          videoId +
-          " does not represent a media element.",
+        "The specified element with ID does not represent a media element.",
       );
     }
-    videoContainer.fp = {} || videoContainer.fp;
 
+    if ((videoContainer as any)?.fp) {
+      (videoContainer as any).fp.destroy();
+    }
+    const videoId: string | undefined = videoParams[1];
     const errorTracking = {
-      automaticErrorTracking: userData.automaticErrorTracking
-        ? userData.automaticErrorTracking
-        : true,
+      automaticErrorTracking: userData.automaticErrorTracking ?? true,
     };
     userData = Object.assign(errorTracking, userData);
     userData.data = Object.assign(userData.data, {
-      player_software_name: "HTML5 Video Element",
-      player_software_version: hlsPlayer.version || "1.0.0",
-      player_fastpix_sdk_name: "Web Video Element Monitor",
-      player_fastpix_sdk_version: "1.0.0",
+      player_software_name: "HLS.js Player",
+      player_software_version: hlsPlayer.version ?? "",
+      player_fastpix_sdk_name: "fastpix-hls-monitoring",
+      player_fastpix_sdk_version: "1.0.1",
     });
 
     const determinePreloadType = function (data: string) {
@@ -76,43 +74,52 @@ const fastpixMetrix = {
     };
 
     userData.fetchPlayheadTime = function () {
-      return Math.floor(1e3 * videoContainer.currentTime);
+      return Math.floor(1e3 * (videoContainer as HTMLVideoElement).currentTime);
     };
 
     userData.fetchStateData = function () {
       let obj;
       let droppedFrameCount;
-      const hlsurl = hlstag && hlstag.url;
+      const hlsurl = hlstag?.url;
       const statsData = {
-        player_is_paused: videoContainer.paused,
+        player_is_paused: (videoContainer as HTMLVideoElement).paused,
         player_width: videoContainer.offsetWidth,
         player_height: videoContainer.offsetHeight,
-        player_autoplay_on: videoContainer.autoplay,
-        player_preload_on: determinePreloadType(videoContainer.preload),
+        player_autoplay_on: (videoContainer as HTMLVideoElement).autoplay,
+        player_preload_on: determinePreloadType(
+          (videoContainer as HTMLVideoElement).preload,
+        ),
         player_is_fullscreen:
           document &&
           !!(
-            document.fullscreenElement ||
+            document.fullscreenElement ??
             (document === null || document === void 0
               ? void 0
-              : (document as any).webkitFullscreenElement) ||
+              : (document as any).webkitFullscreenElement) ??
             (document === null || document === void 0
               ? void 0
-              : (document as any).mozFullScreenElement) ||
+              : (document as any).mozFullScreenElement) ??
             (document === null || document === void 0
               ? void 0
               : (document as any).msFullscreenElement)
           ),
-        video_source_height: videoContainer.videoHeight,
-        video_source_width: videoContainer.videoWidth,
-        video_source_url: hlsurl || videoContainer.currentSrc,
-        video_source_domain: getDomainName(hlsurl || videoContainer.currentSrc),
-        video_source_hostname: getHostName(hlsurl || videoContainer.currentSrc),
-        video_source_duration: Math.floor(1e3 * videoContainer.duration),
-        video_poster_url: videoContainer.poster,
+        video_source_height: (videoContainer as HTMLVideoElement).videoHeight,
+        video_source_width: (videoContainer as HTMLVideoElement).videoWidth,
+        video_source_url:
+          hlsurl ?? (videoContainer as HTMLVideoElement).currentSrc,
+        video_source_domain: getDomainName(
+          hlsurl ?? (videoContainer as HTMLVideoElement).currentSrc,
+        ),
+        video_source_hostname: getHostName(
+          hlsurl ?? (videoContainer as HTMLVideoElement).currentSrc,
+        ),
+        video_source_duration: Math.floor(
+          1e3 * (videoContainer as HTMLVideoElement).duration,
+        ),
+        video_poster_url: (videoContainer as HTMLVideoElement).poster,
         player_language_code: videoContainer.lang,
         view_dropped_frame_count:
-          null === (obj = videoContainer) ||
+          null === (obj = videoContainer as HTMLVideoElement) ||
           void 0 === obj ||
           null === (droppedFrameCount = obj.getVideoPlaybackQuality) ||
           void 0 === droppedFrameCount
@@ -123,55 +130,67 @@ const fastpixMetrix = {
       return statsData;
     };
 
-    videoContainer.fp = videoContainer.fp || {};
-    videoContainer.fp.dispatch = function (name: string, eventName: any) {
+    (videoContainer as any).fp = (videoContainer as any).fp ?? {};
+    (videoContainer as any).fp.dispatch = function (
+      name: string,
+      eventName: any,
+    ) {
       targetObject.dispatch(videoId, name, eventName);
     };
-    videoContainer.fp.listeners = {};
-    videoContainer.fp.deleted = false;
-    videoContainer.fp.destroy = function () {
-      Object.keys(videoContainer.fp.listeners).forEach(function (name) {
-        videoContainer.removeEventListener(
-          name,
-          videoContainer.fp.listeners[name],
-          false,
-        );
-      });
-      delete videoContainer.fp.listeners;
-      videoContainer.fp.deleted = true;
-      videoContainer.fp.dispatch("destroy");
+    (videoContainer as any).fp.listeners = {};
+    (videoContainer as any).fp.deleted = false;
+    (videoContainer as any).fp.destroy = function () {
+      Object.keys((videoContainer as any).fp.listeners).forEach(
+        function (name) {
+          (videoContainer as any).removeEventListener(
+            name,
+            (videoContainer as any).fp.listeners[name],
+            false,
+          );
+        },
+      );
+      delete (videoContainer as any).fp.listeners;
+      (videoContainer as any).fp!.destroyHlsMonitoring();
+      (videoContainer as any).fp.deleted = true;
+      (videoContainer as any).fp.dispatch("destroy");
+      delete (videoContainer as any)?.fp;
     };
 
     targetObject.configure(videoId, userData);
     targetObject.dispatch(videoId, "playerReady");
 
-    if (!videoContainer.paused) {
+    if (!(videoContainer as HTMLVideoElement).paused) {
       targetObject.dispatch(videoId, "play");
 
-      if (videoContainer.readyState > 2) {
+      if ((videoContainer as HTMLVideoElement).readyState > 2) {
         targetObject.dispatch(videoId, "playing");
       }
     }
 
     html5VideoEvents.forEach(function (event) {
       if (!("error" === event && !userData.automaticErrorTracking)) {
-        videoContainer.fp.listeners[event] = function () {
+        (videoContainer as any).fp.listeners[event] = function () {
           let browserObj: any = {};
 
           if ("error" === event) {
-            if (!videoContainer.error || 1 === videoContainer.error.code) {
+            if (
+              !(videoContainer as HTMLVideoElement).error ||
+              1 === (videoContainer as HTMLVideoElement).error?.code
+            ) {
               return;
             }
-            browserObj.player_error_code = videoContainer.error.code;
+            browserObj.player_error_code = (
+              videoContainer as HTMLVideoElement
+            ).error?.code;
             browserObj.player_error_message =
-              browserErrors[videoContainer.error.code] ||
-              videoContainer.error.message;
+              browserErrors[(videoContainer as any).error?.code] ??
+              (videoContainer as HTMLVideoElement).error?.message;
           }
           targetObject.dispatch(videoId, event, browserObj);
         };
         videoContainer.addEventListener(
           event,
-          videoContainer.fp.listeners[event],
+          (videoContainer as any).fp.listeners[event],
           false,
         );
       }
@@ -180,18 +199,6 @@ const fastpixMetrix = {
     if (hlstag) {
       const calculateRequestData = (stats: any) =>
         getRequestTimingDetails(stats);
-      const hlsProgress = function (object: any) {
-        let objLength;
-        const replace = parseInt(hlsPlayer.version);
-
-        return (
-          1 === replace &&
-            null !== object.programDateTime &&
-            (objLength = object.programDateTime),
-          0 === replace && null !== object.pdt && (objLength = object.pdt),
-          objLength
-        );
-      };
 
       const buildRequestEvent = (
         eventType: string,
@@ -216,8 +223,30 @@ const fastpixMetrix = {
 
       const dispatchEvent = (
         type: string,
-        data: EventMetaData | EventData | any,
-      ) => videoContainer.fp.dispatch(type, data);
+        data: {
+          request_event_type?: any;
+          request_bytes_loaded?: any;
+          request_start?: number;
+          request_response_start?: number;
+          request_response_end?: number;
+          request_type?: string;
+          request_hostname?: string;
+          request_response_headers?: any;
+          video_source_fps?: number;
+          video_source_bitrate?: any;
+          video_source_width?: any;
+          video_source_height?: any;
+          video_source_rendition_name?: any;
+          video_source_codec?: any;
+          request_url?: any;
+          player_error_code?: string;
+          player_error_message?: any;
+          player_error_context?: string;
+          request_error?: any;
+          request_error_code?: number;
+          request_error_text?: string;
+        },
+      ) => (videoContainer as any).fp.dispatch(type, data);
 
       const handleManifestLoaded = (
         position: any,
@@ -268,12 +297,6 @@ const fastpixMetrix = {
         levelLoadEvent: { details: any; stats: any; networkDetails: any },
       ) => {
         const levelData = levelLoadEvent.details;
-        const programDateTime =
-          hlsProgress(levelData.fragments[levelData.fragments.length - 1]) +
-          parseInt(
-            levelData.fragments[levelData.fragments.length - 1].duration,
-          );
-
         const levelEventData = buildRequestEvent(
           levelLoadString,
           levelLoadEvent.stats,
@@ -281,9 +304,6 @@ const fastpixMetrix = {
           fetchHeaders(levelLoadEvent.networkDetails),
           {
             video_source_is_live: levelData.live,
-            player_manifest_newest_program_time: isNaN(programDateTime)
-              ? undefined
-              : programDateTime,
           },
         );
 
@@ -310,7 +330,7 @@ const fastpixMetrix = {
         const fragDetails = data.frag;
         const fragData = buildRequestEvent(
           fragEvent,
-          data.stats || fragDetails.stats,
+          data.stats ?? fragDetails.stats,
           data.networkDetails?.responseURL,
           fetchHeaders(data.networkDetails),
           {
@@ -329,7 +349,7 @@ const fastpixMetrix = {
         lvl: { level: string | number },
       ) => {
         const switchLevel = hlstag.levels[lvl.level];
-        if (!switchLevel || !switchLevel.attrs?.BANDWIDTH) {
+        if (!switchLevel?.attrs?.BANDWIDTH) {
           if (userData?.debug)
             console.warn(
               "missing BANDWIDTH from HLS manifest parsed by HLS.js",
@@ -365,66 +385,116 @@ const fastpixMetrix = {
       const handleError = (
         _accessor: any,
         data: {
-          type: any;
+          type: string;
           details: any;
-          frag: { url: any };
-          url: any;
-          response: { code: any; text: any };
-          fatal: any;
+          frag?: { url: string };
+          url?: any;
+          response?: { code: number; text: string };
+          fatal: boolean;
+          reason?: string;
+          level?: string;
+          error?: string;
+          event?: string;
+          err?: { message: string };
         },
       ) => {
-        const errorType = data.type;
-        const errorDetails = data.details;
-        const errorUrl = data.frag?.url || data.url || "";
+        const {
+          type: errorType,
+          details: errorDetails,
+          frag,
+          url,
+          response,
+          fatal,
+          reason,
+          level,
+          error,
+          event,
+          err,
+        } = data;
 
-        if (
-          [
-            hlsPlayer.ErrorDetails.MANIFEST_LOAD_ERROR,
-            hlsPlayer.ErrorDetails.MANIFEST_LOAD_TIMEOUT,
-            hlsPlayer.ErrorDetails.FRAG_LOAD_ERROR,
-            hlsPlayer.ErrorDetails.FRAG_LOAD_TIMEOUT,
-            hlsPlayer.ErrorDetails.LEVEL_LOAD_ERROR,
-            hlsPlayer.ErrorDetails.LEVEL_LOAD_TIMEOUT,
-            hlsPlayer.ErrorDetails.AUDIO_TRACK_LOAD_ERROR,
-            hlsPlayer.ErrorDetails.AUDIO_TRACK_LOAD_TIMEOUT,
-            hlsPlayer.ErrorDetails.SUBTITLE_LOAD_ERROR,
-            hlsPlayer.ErrorDetails.SUBTITLE_LOAD_TIMEOUT,
-            hlsPlayer.ErrorDetails.KEY_LOAD_ERROR,
-            hlsPlayer.ErrorDetails.KEY_LOAD_TIMEOUT,
-          ].includes(errorDetails)
-        ) {
-          const requestType = errorDetails.includes("FRAG")
-            ? "media"
-            : errorDetails.includes("AUDIO_TRACK")
-              ? "audio"
-              : errorDetails.includes("SUBTITLE")
-                ? "subtitle"
-                : errorDetails.includes("KEY")
-                  ? "encryption"
-                  : "manifest";
+        const errorUrl = frag?.url ?? url ?? "";
+        const errorContext = [
+          errorUrl ? `url: ${errorUrl}` : "",
+          response?.code || response?.text
+            ? `response: ${response.code}, ${response.text}`
+            : "",
+          reason ? `failure reason: ${reason}` : "",
+          level ? `level: ${level}` : "",
+          error ? `error: ${error}` : "",
+          event ? `event: ${event}` : "",
+          err?.message ? `error message: ${err.message}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n");
 
-          const errorData = {
+        if (fatal && errorTracking?.automaticErrorTracking) {
+          dispatchEvent("error", {
+            player_error_code: errorType,
+            player_error_message: errorDetails,
+            player_error_context: errorContext,
+          });
+          return;
+        }
+
+        const loadErrors = new Set([
+          hlsPlayer.ErrorDetails.MANIFEST_LOAD_ERROR,
+          hlsPlayer.ErrorDetails.MANIFEST_LOAD_TIMEOUT,
+          hlsPlayer.ErrorDetails.FRAG_LOAD_ERROR,
+          hlsPlayer.ErrorDetails.FRAG_LOAD_TIMEOUT,
+          hlsPlayer.ErrorDetails.LEVEL_LOAD_ERROR,
+          hlsPlayer.ErrorDetails.LEVEL_LOAD_TIMEOUT,
+          hlsPlayer.ErrorDetails.AUDIO_TRACK_LOAD_ERROR,
+          hlsPlayer.ErrorDetails.AUDIO_TRACK_LOAD_TIMEOUT,
+          hlsPlayer.ErrorDetails.SUBTITLE_LOAD_ERROR,
+          hlsPlayer.ErrorDetails.SUBTITLE_LOAD_TIMEOUT,
+          hlsPlayer.ErrorDetails.KEY_LOAD_ERROR,
+          hlsPlayer.ErrorDetails.KEY_LOAD_TIMEOUT,
+        ]);
+
+        if (loadErrors.has(errorDetails)) {
+          const requestTypeMap: Record<string, string> = {
+            [hlsPlayer.ErrorDetails.FRAG_LOAD_ERROR]: "media",
+            [hlsPlayer.ErrorDetails.FRAG_LOAD_TIMEOUT]: "media",
+            [hlsPlayer.ErrorDetails.AUDIO_TRACK_LOAD_ERROR]: "audio",
+            [hlsPlayer.ErrorDetails.AUDIO_TRACK_LOAD_TIMEOUT]: "audio",
+            [hlsPlayer.ErrorDetails.SUBTITLE_LOAD_ERROR]: "subtitle",
+            [hlsPlayer.ErrorDetails.SUBTITLE_LOAD_TIMEOUT]: "subtitle",
+            [hlsPlayer.ErrorDetails.KEY_LOAD_ERROR]: "encryption",
+            [hlsPlayer.ErrorDetails.KEY_LOAD_TIMEOUT]: "encryption",
+          };
+
+          const requestType = requestTypeMap[errorType] ?? "manifest";
+
+          dispatchEvent("requestFailed", {
             request_error: errorDetails,
             request_url: errorUrl,
             request_hostname: getHostName(errorUrl),
             request_type: requestType,
-            request_error_code: data.response?.code,
-            request_error_text: data.response?.text,
-          };
-          dispatchEvent("requestFailed", errorData);
-
-          if (data.fatal) {
-            const errorContext = `${errorUrl ? `url: ${errorUrl}\n` : ""}${data.response?.code || data.response?.text ? `response: ${data.response.code}, ${data.response.text}\n` : ""}`;
-            if (errorTracking.automaticErrorTracking) {
-              dispatchEvent("error", {
-                player_error_code: errorType,
-                player_error_message: errorDetails,
-                player_error_context: errorContext,
-              });
-            }
-          }
+            request_error_code: response?.code,
+            request_error_text: response?.text,
+          });
         }
       };
+
+      if ((videoContainer as any)?.fp) {
+        (videoContainer as any).fp.destroyHlsMonitoring = () => {
+          hlstag.off(hlsPlayer.Events.MANIFEST_LOADED, handleManifestLoaded);
+          hlstag.off(hlsPlayer.Events.LEVEL_LOADED, handleLevelLoaded);
+          hlstag.off(hlsPlayer.Events.AUDIO_TRACK_LOADED, handleTrackLoaded);
+          hlstag.off(hlsPlayer.Events.FRAG_LOADED, handleFragmentLoaded);
+          hlstag.off(hlsPlayer.Events.LEVEL_SWITCHED, handleLevelSwitched);
+          hlstag.off(
+            hlsPlayer.Events.FRAG_LOAD_EMERGENCY_ABORTED,
+            handleFragmentAborted,
+          );
+          hlstag.off(hlsPlayer.Events.ERROR, handleError);
+          hlstag.off(
+            hlsPlayer.Events.DESTROYING,
+            (videoContainer as any).fp?.destroyHlsMonitoring,
+          );
+          delete (videoContainer as any).fp?.destroyHlsMonitoring;
+        };
+      }
 
       // Attach event listeners
       hlstag.on(hlsPlayer.Events.MANIFEST_LOADED, handleManifestLoaded);
@@ -437,10 +507,14 @@ const fastpixMetrix = {
         handleFragmentAborted,
       );
       hlstag.on(hlsPlayer.Events.ERROR, handleError);
+      hlstag.on(
+        hlsPlayer.Events.DESTROYING,
+        (videoContainer as any).fp?.destroyHlsMonitoring,
+      );
     }
   },
   utilityMethods: utilityMethods,
-  configure: function (name: string, props: any) {
+  configure: function (name: string | undefined, props: any) {
     if (checkDoNotTrack()) {
       if (props) {
         if (props.respectDoNotTrack && props?.debug) {
@@ -450,26 +524,36 @@ const fastpixMetrix = {
         }
       }
     }
-    const dispatchKey: string | any = identifyElement(name);
 
-    // @ts-ignore
-    contextState[dispatchKey] = new nucleusState(this, dispatchKey, props);
+    if (name) {
+      const dispatchKey: string | undefined = identifyElement(name);
+
+      // @ts-ignore
+      contextState[dispatchKey] = new nucleusState(this, dispatchKey, props);
+    }
   },
-  dispatch: function (eventName: string, name: string, event?: EventMetaData) {
-    const dispatchKey: string | any = identifyElement(eventName);
+  dispatch: function (
+    eventName: string | undefined,
+    name: string,
+    event?: EventMetaData,
+  ) {
+    if (eventName && name) {
+      const dispatchKey: string | undefined = identifyElement(eventName);
 
-    if (contextState[dispatchKey]) {
-      contextState[dispatchKey].dispatch(name, event);
+      if (dispatchKey && contextState[dispatchKey]) {
+        // @ts-ignore
+        contextState[dispatchKey].dispatch(name, event);
 
-      if ("destroy" === name) {
-        delete contextState[dispatchKey];
+        if ("destroy" === name) {
+          delete contextState[dispatchKey];
+        }
+      } else {
+        console.warn(
+          "The initialization of the monitor for the dispatch key '" +
+            dispatchKey +
+            "' is pending.",
+        );
       }
-    } else {
-      console.warn(
-        "The initialization of the monitor for the dispatch key '" +
-          dispatchKey +
-          "' is pending.",
-      );
     }
   },
 };

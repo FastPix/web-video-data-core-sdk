@@ -2,7 +2,7 @@
 interface LauncherData {
   view_time_to_first_frame?: number;
   view_watch_time: number;
-  view_start?: number | any;
+  view_start?: number;
   player_autoplay_on: boolean;
   video_is_autoplay: boolean;
   view_aggregate_startup_time?: number;
@@ -57,25 +57,11 @@ export class PlaybackStartupMonitor {
     if (this.launcher.data.view_watch_time > 0) {
       this.launcher.data.view_time_to_first_frame =
         this.launcher.data.view_watch_time;
-    } else {
-      if (this.launcher.data.view_start) {
-        const startUpTimer =
-          data.viewer_timestamp - this.launcher.data.view_start;
-        this.launcher.data.view_time_to_first_frame = startUpTimer;
-        this.launcher.data.view_watch_time = startUpTimer;
-      }
-    }
-
-    if (
-      this.launcher.data.player_autoplay_on ||
-      this.launcher.data.video_is_autoplay
-    ) {
-      if (this.launcher.NavigationStart) {
-        this.launcher.data.view_aggregate_startup_time =
-          this.launcher.data.view_start +
-          this.launcher.data.view_watch_time -
-          this.launcher.NavigationStart;
-      }
+    } else if (this.launcher.data.view_start) {
+      const startUpTimer =
+        data.viewer_timestamp - this.launcher.data.view_start;
+      this.launcher.data.view_time_to_first_frame = startUpTimer;
+      this.launcher.data.view_watch_time = startUpTimer;
     }
   }
 }

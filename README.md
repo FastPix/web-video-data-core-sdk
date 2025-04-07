@@ -74,7 +74,7 @@ fastpixMetrix.tracker(videoPlayerElement, {
 });
 
 // To stop monitoring call when destroying the HLS player
-// hlsPlayerInstance.fp.destroy();
+// videoPlayerElement.fp.destroy();
 ```
 
 After successfully completing Step 3, you can track viewer metrics in the FastPix dashboard once playback ends. Steps 4, 5, and 6 are optional and can be utilized as needed to enhance your integration.
@@ -124,7 +124,7 @@ fastpixMetrix.tracker(videoPlayerElement, {
 });
 
 // To stop monitoring call when destroying the HLS player
-// hlsPlayerInstance.fp.destroy();
+// videoPlayerElement.fp.destroy();
 ```
 
 ### Note:

@@ -7,20 +7,19 @@ import {
 } from "../IdGenerationMethod/index";
 
 // Return Host & Domain Name
-const getHostAndDomainName = (endpoint: string): (string | undefined)[] => {
-  if (typeof endpoint !== "string" || endpoint === "") {
-    return ["localhost"];
+const getHostAndDomainName = (endpoint: string): [string, string] => {
+  if (!endpoint) {
+    return ["localhost", "localhost"];
   }
-  let trackDomain: string | undefined;
-  const trackHost: string | undefined = (endpoint.match(
-    /^(([^:/?#]+):)?(\/\/([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?/,
-  ) || [])[4];
+  try {
+    const url = new URL(endpoint);
+    const host = url.hostname;
+    const parts = host.split(".");
+    const domain = parts.length >= 2 ? parts.slice(-2).join(".") : host;
+    return [host, domain];
+  } catch {}
 
-  if (trackHost) {
-    trackDomain = (trackHost.match(/[^.]+\.[^.]+$/) || [])[0];
-  }
-
-  return [trackHost, trackDomain];
+  return ["localhost", "localhost"];
 };
 
 // Return Hostname
@@ -37,7 +36,7 @@ const getDomainName = (obj: string): string | undefined => {
 const getElementId = (attr: HTMLElement | string): string | undefined => {
   if (attr && (attr as HTMLElement).nodeName) {
     return (
-      (attr as HTMLElement as any).uniqueId ||
+      (attr as HTMLElement as any).uniqueId ??
       ((attr as HTMLElement as any).uniqueId = generateIdToken())
     );
   }
@@ -51,19 +50,20 @@ const getElementId = (attr: HTMLElement | string): string | undefined => {
       element.uniqueId = attr as string;
     }
 
-    return element?.uniqueId || (attr as string);
-  } catch (e) {
-    return attr as string;
-  }
+    return element?.uniqueId ?? (attr as string);
+  } catch {}
+
+  return attr as string;
 };
 
 // Analyze video element
 const analyzeVideo = (
-  target: HTMLElement | string | any,
+  target: HTMLElement | string | undefined,
 ): [HTMLElement | null, string | undefined, string] => {
   let videoTag: HTMLElement | null = null;
   if (target && (target as HTMLElement).nodeName !== undefined) {
-    target = getElementId((videoTag = target as HTMLElement));
+    videoTag = target as HTMLElement;
+    target = getElementId(videoTag);
   } else {
     videoTag = document.querySelector(target as string) as HTMLElement;
   }
@@ -74,11 +74,11 @@ const analyzeVideo = (
 
 // Identify or assign unique ID to an element
 const identifyElement = (target: HTMLElement | string): string | undefined => {
-  let foundElement: Element | any = null;
+  let foundElement: Element | null = null;
 
   if (target && (target as HTMLElement).nodeName !== undefined) {
     return (
-      (target as HTMLElement as any).elementId ||
+      (target as HTMLElement as any).elementId ??
         ((target as HTMLElement as any).elementId = generateRandomIdentifier()),
       (target as HTMLElement as any).elementId
     );
@@ -88,11 +88,11 @@ const identifyElement = (target: HTMLElement | string): string | undefined => {
     foundElement = document.querySelector(target as string);
   } catch {}
 
-  if (foundElement && !foundElement.elementId) {
-    foundElement.elementId = target as string;
+  if (foundElement && !(foundElement as any).elementId) {
+    (foundElement as any).elementId = target as string;
   }
 
-  return foundElement?.elementId || (target as string);
+  return (foundElement as any)?.elementId ?? (target as string);
 };
 
 // Merge multiple objects, skipping undefined values
@@ -122,12 +122,8 @@ function formulateBeaconUrl(
   config: ActionableDataTypes,
 ): string {
   const { beaconDomain } = config;
-  const targetDomain = beaconDomain || "metrix.ws";
-  const finalWorkspace = workspace || "collector";
-
-  if (config?.actionableData?.beaconCollectionDomain) {
-    return `https://${config.actionableData.beaconCollectionDomain}`;
-  }
+  const targetDomain = beaconDomain ?? "metrix.ws";
+  const finalWorkspace = workspace ?? "collector";
 
   return `https://${finalWorkspace}.${targetDomain}`;
 }
@@ -135,8 +131,8 @@ function formulateBeaconUrl(
 // Check if Do Not Track is enabled
 function checkDoNotTrack(): boolean {
   const dntStatus =
-    navigator.doNotTrack ||
-    (window as any).doNotTrack ||
+    navigator.doNotTrack ??
+    (window as any).doNotTrack ??
     (navigator as any).msDoNotTrack;
 
   return dntStatus === "1" || dntStatus === "yes";
@@ -221,8 +217,8 @@ function getRequestTimingDetails(event: any) {
 const checkNetworkBandwidth = (): string | undefined => {
   const connectionType = navigator as any;
   const connection =
-    connectionType?.connection ||
-    connectionType?.mozConnection ||
+    connectionType?.connection ??
+    connectionType?.mozConnection ??
     connectionType?.webkitConnection;
 
   return connection?.type;

@@ -11,11 +11,7 @@ const makeApiCall = async (
   failure: (arg0?: null | undefined, arg1?: string | null) => void,
 ): Promise<void> => {
   try {
-    if (
-      destroyer &&
-      navigator.sendBeacon &&
-      navigator.sendBeacon(postcall, logData)
-    ) {
+    if (destroyer && navigator.sendBeacon?.(postcall, logData)) {
       failure();
     }
 

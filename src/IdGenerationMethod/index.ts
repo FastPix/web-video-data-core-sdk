@@ -12,7 +12,6 @@ const generateIdToken: () => string = function () {
 
 // Returns unique UUID
 const buildUUID: () => string = function () {
-
   return uuidv4();
 };
 
