@@ -154,6 +154,8 @@ interface OverrideableMetaData {
 }
 
 interface EventMetaData extends EventsInterface, UserCustomDataType {
+  dashPlayer: any;
+  dashjs: any;
   debug: any;
   fetchStateData: () => {
     player_is_paused: any;
