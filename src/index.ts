@@ -41,6 +41,7 @@ const fastpixMetrix = {
     const hlsPlayer: any = userData.Hls ?? (window as any).Hls;
     const dashPlayer: any = userData.dashjs ?? (window as any).dashjs;
     let playerType: "hls" | "dash" | "unknown" = "unknown";
+    
     if (hlsPlayer) {
       playerType = "hls";
     } else if (dashPlayer) {
@@ -51,8 +52,8 @@ const fastpixMetrix = {
     if (!videoContainer) {
       return console.error(
         "There are no elements found matching the query selector " +
-          videoContainer +
-          ".",
+        videoContainer +
+        ".",
       );
     }
 
@@ -70,30 +71,33 @@ const fastpixMetrix = {
       automaticErrorTracking: userData.automaticErrorTracking ?? true,
     };
 
+    const playerConfigMap = {
+      hls: {
+        name: "hls.js Player",
+        version: hlsPlayer?.version ?? "",
+        sdk: "fastpix-hls-monitoring",
+      },
+      dash: {
+        name: "dash.js Player",
+        version: dashPlayer?.Version ?? "",
+        sdk: "fastpix-dash-monitoring",
+      },
+      unknown: {
+        name: "",
+        version: "",
+        sdk: "fastpix-data-monitoring",
+      },
+    };
+    const playerConfig = playerConfigMap[playerType];
     userData = {
       ...userData,
       ...errorTracking,
     };
     userData.data = {
       ...userData.data,
-      player_software_name:
-        playerType === "hls"
-          ? "hls.js Player"
-          : playerType === "dash"
-            ? "dash.js Player"
-            : "",
-      player_software_version:
-        playerType === "hls"
-          ? (hlsPlayer?.version ?? "")
-          : playerType === "dash"
-            ? (dashPlayer?.Version ?? "")
-            : "",
-      player_fastpix_sdk_name:
-        playerType === "hls"
-          ? "fastpix-hls-monitoring"
-          : playerType === "dash"
-            ? "fastpix-dash-monitoring"
-            : "fastpix-data-monitoring",
+      player_software_name: playerConfig.name,
+      player_software_version: playerConfig.version,
+      player_fastpix_sdk_name: playerConfig.sdk,
       player_fastpix_sdk_version: "1.0.2",
     };
 
@@ -267,7 +271,6 @@ const fastpixMetrix = {
         hlstag,
         hlsPlayer,
         videoContainer,
-        userData,
         errorTracking,
         dispatchEvent,
       );

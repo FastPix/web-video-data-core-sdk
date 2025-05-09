@@ -247,7 +247,7 @@ export const setupDashMonitoring = (
     const { mediaType, newRepresentation, newQuality } = event;
 
     if (mediaType === "video" && typeof newRepresentation === "object") {
-      (videoContainer as any)?.fp?.dispatch("variantChanged", {
+      videoContainer?.fp?.dispatch("variantChanged", {
         video_source_bitrate: newRepresentation.bandwidth,
         video_source_height: newRepresentation.height,
         video_source_width: newRepresentation.width,
@@ -276,7 +276,7 @@ export const setupDashMonitoring = (
 
       const bitrateData = parseMediaData();
       if (bitrateData) {
-        (videoContainer as any)?.fp?.dispatch("variantChanged", bitrateData);
+        videoContainer?.fp?.dispatch("variantChanged", bitrateData);
       }
     }
   };
@@ -288,7 +288,7 @@ export const setupDashMonitoring = (
     const requesturl = mediaRequest?.url;
     const requestHostName = requesturl ? getHostName(requesturl) : "";
 
-    (videoContainer as any)?.fp?.dispatch("requestCanceled", {
+    videoContainer?.fp?.dispatch("requestCanceled", {
       request_event_type: eventType,
       request_url: requesturl,
       request_type: mediaType,
@@ -307,7 +307,7 @@ export const setupDashMonitoring = (
     const key = data?.response ?? {};
 
     if (error.code === 27) {
-      (videoContainer as any)?.fp.dispatch("requestFailed", {
+      videoContainer?.fp.dispatch("requestFailed", {
         request_error: `${options.type}_${options.action}`,
         request_url: options.url,
         request_hostname: options.url ? getHostName(options.url) : "",
@@ -328,7 +328,7 @@ export const setupDashMonitoring = (
     }
 
     if (errorTracking?.automaticErrorTracking) {
-      (videoContainer as any)?.fp.dispatch("error", {
+      videoContainer?.fp.dispatch("error", {
         player_error_code: error.code,
         player_error_message: error.message,
         player_error_context: errorContext,
@@ -336,15 +336,15 @@ export const setupDashMonitoring = (
     }
   };
 
-  if ((videoContainer as any)?.fp) {
-    (videoContainer as any).fp.destroyDashMonitoring = () => {
+  if (videoContainer?.fp) {
+    videoContainer.fp.destroyDashMonitoring = () => {
       dashTag.off("error", handleErrorEvent);
       dashTag.off("fragmentLoadingAbandoned", handleCanceledRequest);
       dashTag.off("qualityChangeRendered", handleQualityChange);
       dashTag.off("manifestLoaded", handleManifestLoaded);
       dashTag.off("initFragmentLoaded", handleInitFragmentV4);
       dashTag.off("mediaFragmentLoaded", handleMediaFragmentV4);
-      delete (videoContainer as any).fp?.destroyDashMonitoring;
+      delete videoContainer.fp?.destroyDashMonitoring;
     };
   }
 

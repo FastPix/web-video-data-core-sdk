@@ -93,6 +93,7 @@ class BufferProcessor {
       this.params.data.view_watch_time &&
       this.params.data.view_watch_time >= 0
     ) {
+      
       if (
         this.params.data.view_rebuffer_count &&
         this.params.data.view_rebuffer_count > 0

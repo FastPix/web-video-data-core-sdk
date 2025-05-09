@@ -8,7 +8,6 @@ export const setupHlsMonitoring = (
   hlstag: any,
   hlsPlayer: any,
   videoContainer: any,
-  userData: any,
   errorTracking: any,
   dispatchEvent: (type: string, data: any) => void,
 ) => {
@@ -136,8 +135,7 @@ export const setupHlsMonitoring = (
   ) => {
     const switchLevel = hlstag.levels[lvl.level];
     if (!switchLevel?.attrs?.BANDWIDTH) {
-      if (userData?.debug)
-      return;
+       return;
     }
 
     const levelSwitchEvent = {
@@ -259,8 +257,8 @@ export const setupHlsMonitoring = (
     }
   };
 
-  if ((videoContainer as any)?.fp) {
-    (videoContainer as any).fp.destroyHlsMonitoring = () => {
+  if (videoContainer?.fp) {
+    videoContainer.fp.destroyHlsMonitoring = () => {
       hlstag.off(hlsPlayer.Events.MANIFEST_LOADED, handleManifestLoaded);
       hlstag.off(hlsPlayer.Events.LEVEL_LOADED, handleLevelLoaded);
       hlstag.off(hlsPlayer.Events.AUDIO_TRACK_LOADED, handleTrackLoaded);
@@ -273,9 +271,9 @@ export const setupHlsMonitoring = (
       hlstag.off(hlsPlayer.Events.ERROR, handleError);
       hlstag.off(
         hlsPlayer.Events.DESTROYING,
-        (videoContainer as any).fp?.destroyHlsMonitoring,
+        videoContainer.fp?.destroyHlsMonitoring,
       );
-      delete (videoContainer as any).fp?.destroyHlsMonitoring;
+      delete videoContainer.fp?.destroyHlsMonitoring;
     };
   }
 
@@ -292,6 +290,6 @@ export const setupHlsMonitoring = (
   hlstag.on(hlsPlayer.Events.ERROR, handleError);
   hlstag.on(
     hlsPlayer.Events.DESTROYING,
-    (videoContainer as any).fp?.destroyHlsMonitoring,
+    videoContainer.fp?.destroyHlsMonitoring,
   );
 };

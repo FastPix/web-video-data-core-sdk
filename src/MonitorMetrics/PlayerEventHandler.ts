@@ -94,7 +94,6 @@ export class PlaybackEventHandler {
 
   sendData(event: string, obj: EventMetaData): void {
     if (!event || !obj?.view_id) return;
-
     if (this.shouldRespectDoNotTrack(event)) return;
     if (!this.validateEventData(obj)) return;
     if (
@@ -109,6 +108,7 @@ export class PlaybackEventHandler {
       return;
     }
     const data = this.prepareEventData(event, obj);
+    
     this.eventQueue.scheduleEvent(data);
 
     if (event === "viewCompleted") {

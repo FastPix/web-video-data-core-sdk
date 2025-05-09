@@ -51,11 +51,10 @@ export class RequestMetricsMonitor {
     const responseStart: number = reqData?.request_response_start ?? 0;
     const responseEnd: number = reqData?.request_response_end ?? 0;
     const loadedBytes: number = reqData?.request_bytes_loaded ?? 0;
-
-    this.requestCount++;
-
     const latency = responseStart - requestStart;
     const duration = responseEnd - (responseStart ?? requestStart);
+
+    this.requestCount++;
 
     if (duration > 0 && loadedBytes > 0) {
       this.processedChunks++;

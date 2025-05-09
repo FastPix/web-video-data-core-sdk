@@ -53,7 +53,6 @@ function nucleusState(
   const defaultConfig = {
     debug: actionableData?.debug ?? false,
     beaconDomain: actionableData.configDomain ?? "metrix.ws",
-    sampleRate: 1,
     disableCookies: actionableData.disableCookies ?? false,
     respectDoNotTrack: actionableData.respectDoNotTrack ?? false,
     allowRebufferTracking: false,
@@ -85,7 +84,6 @@ function nucleusState(
   );
   fileInstance.data = {
     player_instance_id: buildUUID(),
-    fastpix_sample_rate: actionableData.sampleRate,
     beacon_domain:
       actionableData.beaconCollectionDomain ?? actionableData.beaconDomain,
   };
