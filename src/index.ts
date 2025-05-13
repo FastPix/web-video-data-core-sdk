@@ -98,7 +98,7 @@ const fastpixMetrix = {
       player_software_name: playerConfig.name,
       player_software_version: playerConfig.version,
       player_fastpix_sdk_name: playerConfig.sdk,
-      player_fastpix_sdk_version: "1.0.2",
+      player_fastpix_sdk_version: "1.0.3",
     };
 
     const determinePreloadType = function (data: string) {

@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3]
+- Updated `package.json` to include additional keywords related to video analytics, HLS, and DASH players.
+
 ## [1.0.2]
 - Added support for DASH.js video player monitoring
 - Enhanced analytics collection for DASH streams

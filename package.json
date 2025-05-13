@@ -1,6 +1,6 @@
 {
   "name": "@fastpix/video-data-core",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "FastPix, Inc",
   "license": "MIT",
   "description": "FastPix Video Data SDK for real-time monitoring of HTML5 video players.",
@@ -13,6 +13,22 @@
     "require": "./dist/index.cjs",
     "default": "./dist/index.js"
   },
+  "keywords": [
+    "fastpix analytics",
+    "FastPix",
+    "video analytics",
+    "HTML5 video analytics",
+    "HLS analytics",
+    "DASH analytics",
+    "HLS player",
+    "DASH player",
+    "real-time video monitoring",
+    "video data SDK",
+    "streaming video metrics",
+    "media player analytics",
+    "video quality monitoring",
+    "QoE metrics"
+  ],
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\"",
     "build:esm": "esbuild src/index.ts --bundle --outfile=dist/index.mjs --format=esm --minify",
@@ -22,7 +38,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.25.4",
     "prettier": "^3.3.3",
     "typescript": "^5.3.2"
   },
