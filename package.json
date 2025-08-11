@@ -1,6 +1,6 @@
 {
   "name": "@fastpix/video-data-core",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "FastPix, Inc",
   "license": "MIT",
   "description": "FastPix Video Data SDK for real-time monitoring of HTML5 video players.",
@@ -41,8 +41,5 @@
     "esbuild": "^0.25.4",
     "prettier": "^3.3.3",
     "typescript": "^5.3.2"
-  },
-  "dependencies": {
-    "uuid": "^11.0.5"
   }
 }

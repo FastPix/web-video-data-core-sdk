@@ -14,10 +14,10 @@ interface Emitter {
 }
 
 export class PlaybackPulseHandler {
-  pulseInterval: boolean = false;
   playheadProgressing: boolean = false;
   pulse: Pulse;
   emitter: Emitter;
+  pulseIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(pulse: Pulse, emitter: Emitter) {
     this.pulse = pulse;
@@ -26,15 +26,21 @@ export class PlaybackPulseHandler {
   }
 
   callPulseInterval() {
-    if (this.pulse.worker) {
-      this.pulse.worker.postMessage({ command: "initiatePulseInterval" });
+    if (!this.pulseIntervalId) {
+      this.pulse.dispatch("pulseStart");
+      this.pulseIntervalId = setInterval(() => {
+        this.pulse.dispatch("pulseStart");
+      }, 25);
     }
   }
 
   endPulseInterval() {
     this.pulse.playheadProgressing = false;
-    if (this.pulse.worker) {
-      this.pulse.worker.postMessage({ command: "demolishPulseInterval" });
+
+    if (this.pulseIntervalId) {
+      clearInterval(this.pulseIntervalId);
+      this.pulse.dispatch("pulseEnd");
+      this.pulseIntervalId = null;
     }
   }
 
@@ -56,7 +62,7 @@ export class PlaybackPulseHandler {
   };
 
   handleTimeUpdate = () => {
-    if (this.pulseInterval) {
+    if (this.pulseIntervalId) {
       this.pulse.dispatch("pulseStart");
     }
   };

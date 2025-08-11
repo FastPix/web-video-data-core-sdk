@@ -29,6 +29,7 @@ export const setupHlsMonitoring = (
       request_response_end: timerData.responseEnd,
       request_type: "manifest",
       request_hostname: getHostName(url),
+      request_url: url ?? "",
       request_response_headers: headers,
       ...details,
     };
@@ -135,7 +136,7 @@ export const setupHlsMonitoring = (
   ) => {
     const switchLevel = hlstag.levels[lvl.level];
     if (!switchLevel?.attrs?.BANDWIDTH) {
-       return;
+      return;
     }
 
     const levelSwitchEvent = {

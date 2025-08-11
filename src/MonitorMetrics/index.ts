@@ -8,7 +8,6 @@ import {
   ListenerManager,
 } from "../CommonMethods/index";
 import { buildUUID } from "../IdGenerationMethod/index";
-import { createTimerWorker, inlineWorkerText } from "../Worker/index";
 import { BufferMonitor, BufferProcessor } from "./VideoBufferMonitor";
 import { ErrorManager } from "./ErrorManager";
 import { PlaybackEventHandler } from "./PlayerEventHandler";
@@ -56,14 +55,15 @@ function nucleusState(
     disableCookies: actionableData.disableCookies ?? false,
     respectDoNotTrack: actionableData.respectDoNotTrack ?? false,
     allowRebufferTracking: false,
-    disablePlayheadRebufferTracking: false,
+    disablePlayheadRebufferTracking:
+      actionableData.disablePlayheadRebufferTracking ?? false,
     errorConverter: function (errAttr: any) {
       return errAttr;
     },
   };
   actionableData = {
-    actionableData,
     ...defaultConfig,
+    actionableData,
   };
   fileInstance.userConfigData = actionableData;
   fileInstance.fetchPlayheadTime =
@@ -90,34 +90,7 @@ function nucleusState(
   fileInstance.data.view_sequence_number = 1;
   fileInstance.data.player_sequence_number = 1;
   fileInstance.lastCheckedEventTime = void 0;
-
-  // Initiating web workers
-  fileInstance.worker = createTimerWorker(inlineWorkerText);
-
-  // Message from web worker
-  fileInstance.worker.onmessage = function (message: any) {
-    let messageCommand: string = message.data.command;
-
-    switch (messageCommand) {
-      case "pulseStart":
-        fileInstance.dispatch(messageCommand);
-        fileInstance.handlePulse.pulseInterval = true;
-        break;
-
-      case "pulseEnd":
-        fileInstance.playheadProgressing = false;
-        fileInstance.dispatch(messageCommand);
-        fileInstance.handlePulse.pulseInterval = false;
-        break;
-
-      case "emitPulse":
-        fileInstance.dispatch("pulse");
-        break;
-
-      default:
-        return;
-    }
-  };
+  fileInstance.throbTimeoutId = undefined;
 
   fileInstance.dispatch = function (
     name: string,
@@ -176,7 +149,10 @@ function nucleusState(
     fileInstance.demolishView();
   };
 
-  if (window && typeof window !== "undefined") {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.addEventListener !== "undefined"
+  ) {
     window.addEventListener(
       "pagehide",
       function (event) {
@@ -389,8 +365,6 @@ nucleusState.prototype.validateData = function () {
 };
 
 nucleusState.prototype.filterData = function (str: string) {
-  const workerInstance = this;
-
   if (this.data.view_id) {
     if (
       this.data.player_source_duration > 0 ||
@@ -413,15 +387,26 @@ nucleusState.prototype.filterData = function (str: string) {
     this.eventsDispatcher.sendData(str, updatedata);
     this.data.view_sequence_number++;
     this.data.player_sequence_number++;
-    workerInstance.worker.postMessage({
-      command: "checkPulse",
-      pausestate: workerInstance.data.player_is_paused,
-      errortracker: workerInstance.warning.hasErrorOccurred,
-    });
+
+    this.handlePulseEvent(this);
 
     if (str === "viewCompleted") {
       delete this.data.view_id;
     }
+  }
+};
+
+nucleusState.prototype.handlePulseEvent = (instance: any) => {
+  if (instance.throbTimeoutId) {
+    clearTimeout(instance.throbTimeoutId);
+  }
+
+  if (!instance.warning.hasErrorOccurred) {
+    instance.throbTimeoutId = setTimeout(() => {
+      if (!instance.data.player_is_paused) {
+        instance.dispatch("pulse");
+      }
+    }, 10000);
   }
 };
 

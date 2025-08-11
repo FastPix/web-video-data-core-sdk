@@ -87,9 +87,13 @@ export class PlaybackEventHandler {
     this.previousBeaconData = null;
     this.sdkPageDetails = {
       viewer_connection_type: getNetworkConnection(),
-      page_url: window?.location?.href ?? "",
+      page_url: typeof window !== "undefined" ? window?.location?.href : "",
     };
-    this.userData = this.disableCookies ? {} : getViewerCookie();
+
+    const canAccessDocument = typeof document !== "undefined";
+    this.userData = (this.disableCookies || !canAccessDocument)
+      ? {}
+      : getViewerCookie();
   }
 
   sendData(event: string, obj: EventMetaData): void {
@@ -107,8 +111,13 @@ export class PlaybackEventHandler {
       );
       return;
     }
-    const data = this.prepareEventData(event, obj);
-    
+    let data = this.prepareEventData(event, obj);
+    data = Object.fromEntries(
+      Object.entries(data).filter(
+        ([_, value]) => value !== undefined && !Number.isNaN(value),
+      ),
+    );
+
     this.eventQueue.scheduleEvent(data);
 
     if (event === "viewCompleted") {
@@ -143,11 +152,15 @@ export class PlaybackEventHandler {
   }
 
   prepareEventData(event: string, obj: EventMetaData) {
-    const cookieUpdater = this.disableCookies ? {} : this.updateCookies();
+    const cookieSessionData =
+      this.disableCookies || typeof document === "undefined"
+        ? {}
+        : this.updateCookies();
+
     const data = mergeObjects(
       this.sdkPageDetails,
       obj,
-      cookieUpdater,
+      cookieSessionData,
       this.userData,
       {
         event_name: event,
@@ -230,12 +243,16 @@ export class PlaybackEventHandler {
     }
   }
 
-  updateCookies(): {
-    session_id: string;
-    session_start: string;
-    session_expiry_time: number;
-  } {
-    const data = getViewerData();
+  updateCookies():
+    | {
+      session_id: string;
+      session_start: string;
+      session_expiry_time: number | string;
+    }
+    | {} {
+    if (typeof document === "undefined") return {};
+
+    const data: any = getViewerData();
     const cookieTimer = Date.now();
 
     if (

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4]
+- Added `request_url` to capture each video chunk URL in hls and dash players.
+- Implemented strict checks for `document` and `window` objects to ensure execution only in browser environments.
+- Fixed bug where `destroyHlsMonitoring` could throw a runtime error.
+- Updated UUID generation method to work seamlessly across both web and mobile applications.
+
 ## [1.0.3]
 - Updated `package.json` to include additional keywords related to video analytics, HLS, and DASH players.
 

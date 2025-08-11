@@ -41,7 +41,7 @@ const fastpixMetrix = {
     const hlsPlayer: any = userData.Hls ?? (window as any).Hls;
     const dashPlayer: any = userData.dashjs ?? (window as any).dashjs;
     let playerType: "hls" | "dash" | "unknown" = "unknown";
-    
+
     if (hlsPlayer) {
       playerType = "hls";
     } else if (dashPlayer) {
@@ -52,8 +52,8 @@ const fastpixMetrix = {
     if (!videoContainer) {
       return console.error(
         "There are no elements found matching the query selector " +
-        videoContainer +
-        ".",
+          videoContainer +
+          ".",
       );
     }
 
@@ -98,7 +98,7 @@ const fastpixMetrix = {
       player_software_name: playerConfig.name,
       player_software_version: playerConfig.version,
       player_fastpix_sdk_name: playerConfig.sdk,
-      player_fastpix_sdk_version: "1.0.3",
+      player_fastpix_sdk_version: "1.0.4",
     };
 
     const determinePreloadType = function (data: string) {
@@ -188,10 +188,13 @@ const fastpixMetrix = {
       );
       delete (videoContainer as any).fp.listeners;
 
-      if (playerType === "hls") {
-        (videoContainer as any).fp!.destroyHlsMonitoring();
-      } else if (playerType === "dash") {
-        (videoContainer as any).fp!.destroyDashMonitoring();
+      if (playerType === "hls" && videoContainer.fp?.destroyHlsMonitoring) {
+        (videoContainer as any).fp?.destroyHlsMonitoring();
+      } else if (
+        playerType === "dash" &&
+        videoContainer.fp?.destroyDashMonitoring
+      ) {
+        (videoContainer as any).fp?.destroyDashMonitoring();
       }
 
       (videoContainer as any).fp.deleted = true;
