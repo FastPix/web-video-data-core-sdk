@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.5]
+- Added support for accepting user-provided player_software_name and player_software_version via user-passable data.
+
 ## [1.0.4]
 - Added `request_url` to capture each video chunk URL in hls and dash players.
 - Implemented strict checks for `document` and `window` objects to ensure execution only in browser environments.

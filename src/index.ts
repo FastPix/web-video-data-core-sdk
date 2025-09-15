@@ -94,11 +94,11 @@ const fastpixMetrix = {
       ...errorTracking,
     };
     userData.data = {
-      ...userData.data,
       player_software_name: playerConfig.name,
       player_software_version: playerConfig.version,
       player_fastpix_sdk_name: playerConfig.sdk,
-      player_fastpix_sdk_version: "1.0.4",
+      player_fastpix_sdk_version: "1.0.5",
+      ...userData.data
     };
 
     const determinePreloadType = function (data: string) {
