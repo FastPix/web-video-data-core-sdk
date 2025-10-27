@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.6]
+### Changed
+- Updated npm authentication from Classic token to Granular token for improved security and fine-grained permissions.
+
 ## [1.0.5]
 - Added support for accepting user-provided player_software_name and player_software_version via user-passable data.
 
