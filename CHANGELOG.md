@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.7]
+### Changed
+- Updated the SDK’s default metrics collection domain to improve endpoint reliability and alignment with current infrastructure.
+- Explicitly configured custom domains continue to be respected.
+
 ## [1.0.6]
 ### Changed
 - Updated npm authentication from Classic token to Granular token for improved security and fine-grained permissions.

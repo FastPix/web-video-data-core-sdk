@@ -51,7 +51,7 @@ function nucleusState(
   fileInstance.id = token;
   const defaultConfig = {
     debug: actionableData?.debug ?? false,
-    beaconDomain: actionableData.configDomain ?? "metrix.ws",
+    beaconDomain: actionableData.configDomain ?? "anlytix.io",
     disableCookies: actionableData.disableCookies ?? false,
     respectDoNotTrack: actionableData.respectDoNotTrack ?? false,
     allowRebufferTracking: false,

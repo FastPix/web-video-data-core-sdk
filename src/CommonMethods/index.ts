@@ -122,7 +122,7 @@ function formulateBeaconUrl(
   config: ActionableDataTypes,
 ): string {
   const { beaconDomain } = config;
-  const targetDomain = beaconDomain ?? "metrix.ws";
+  const targetDomain = beaconDomain ?? "anlytix.io";
   const finalWorkspace = workspace ?? "collector";
 
   return `https://${finalWorkspace}.${targetDomain}`;
