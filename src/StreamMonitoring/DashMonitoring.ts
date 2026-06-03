@@ -39,7 +39,7 @@ export const setupDashMonitoring = (
   errorTracking: any,
   dispatchEvent: (type: string, data: any) => void,
 ) => {
-  const headerAllowlist = [
+  const headerAllowlist = new Set([
     "x-cdn",
     "content-type",
     "content-length",
@@ -49,7 +49,7 @@ export const setupDashMonitoring = (
     "cf-ray",
     "x-amz-cf-id",
     "x-akamai-request-id",
-  ];
+  ]);
 
   function removeClass(rawHeaders: string = ""): Record<string, string> {
     const headerMap: Record<string, string> = {};
@@ -67,8 +67,7 @@ export const setupDashMonitoring = (
         const headerValue = rest.join(": ");
 
         const isWhitelisted =
-          headerAllowlist.includes(headerKey) ||
-          headerKey.startsWith("x-litix-");
+          headerAllowlist.has(headerKey) || headerKey.startsWith("x-litix-");
 
         if (isWhitelisted) {
           headerMap[headerName] = headerValue;
@@ -210,7 +209,7 @@ export const setupDashMonitoring = (
 
   // Extracts codec string from codec metadata
   const extractCodec = (codecLine: string): string | undefined => {
-    const match = /.*codecs\*?="(.*)"/.exec(codecLine);
+    const match = /codecs\*?="([^"]*)"/.exec(codecLine);
     return match ? match[1] : undefined;
   };
 

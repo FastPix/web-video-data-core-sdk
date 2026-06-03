@@ -141,7 +141,7 @@ export const setupHlsMonitoring = (
 
     const levelSwitchEvent = {
       video_source_fps:
-        parseFloat(switchLevel.attrs["FRAME-RATE"]) || undefined,
+        Number.parseFloat(switchLevel.attrs["FRAME-RATE"]) || undefined,
       video_source_bitrate: switchLevel.attrs.BANDWIDTH,
       video_source_width: switchLevel.width,
       video_source_height: switchLevel.height,

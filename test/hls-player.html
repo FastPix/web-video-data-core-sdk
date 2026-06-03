@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HLS.js Player — FastPix SDK Test</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #0f0f0f;
+        color: #e0e0e0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 32px 16px;
+        gap: 24px;
+      }
+
+      header { text-align: center; }
+      header h1 { font-size: 1.5rem; font-weight: 600; color: #fff; }
+      header p  { font-size: 0.85rem; color: #888; margin-top: 4px; }
+
+      .player-card {
+        width: 100%;
+        max-width: 860px;
+        background: #1a1a1a;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #2a2a2a;
+      }
+
+      video {
+        width: 100%;
+        display: block;
+        background: #000;
+        max-height: 480px;
+      }
+
+      .controls {
+        padding: 16px 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        border-top: 1px solid #2a2a2a;
+      }
+
+      .controls input[type="text"] {
+        flex: 1;
+        min-width: 260px;
+        padding: 8px 12px;
+        background: #111;
+        border: 1px solid #333;
+        border-radius: 6px;
+        color: #e0e0e0;
+        font-size: 0.85rem;
+      }
+
+      .controls input[type="text"]:focus { outline: none; border-color: #5b8cff; }
+
+      button {
+        padding: 8px 18px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      button:hover { opacity: 0.85; }
+      button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      .btn-primary   { background: #2563eb; color: #fff; }
+      .btn-secondary { background: #333; color: #ccc; }
+      .btn-danger    { background: #c0392b; color: #fff; }
+
+      .info-grid {
+        padding: 16px 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 12px;
+        border-top: 1px solid #2a2a2a;
+      }
+
+      .info-item .info-label { display: block; font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+      .info-item span  { font-size: 0.9rem; color: #ccc; font-variant-numeric: tabular-nums; }
+
+      .log-panel {
+        width: 100%;
+        max-width: 860px;
+        background: #111;
+        border-radius: 12px;
+        border: 1px solid #2a2a2a;
+        overflow: hidden;
+      }
+
+      .log-panel h2 {
+        padding: 12px 16px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        border-bottom: 1px solid #1e1e1e;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #log-output {
+        height: 200px;
+        overflow-y: auto;
+        padding: 10px 14px;
+        font-family: "SF Mono", Menlo, monospace;
+        font-size: 0.75rem;
+        line-height: 1.7;
+      }
+
+      .log-info    { color: #5b8cff; }
+      .log-event   { color: #4ec97e; }
+      .log-error   { color: #e05555; }
+      .log-warn    { color: #f0a040; }
+      .log-quality { color: #c792ea; }
+
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        background: #1e3a1e;
+        color: #4ec97e;
+        margin-left: 8px;
+      }
+      .badge.error   { background: #3a1e1e; color: #ff6b6b; }
+      .badge.pending { background: #2a2a1e; color: #f0a040; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>HLS.js Player
+        <span class="badge" id="sdk-badge">FastPix SDK</span>
+      </h1>
+      <p>HTML5 video player with HLS.js + FastPix analytics</p>
+    </header>
+
+    <div class="player-card">
+      <video id="video-player" controls playsinline></video>
+
+      <div class="controls">
+        <input
+          type="text"
+          id="stream-url"
+          placeholder="HLS stream URL (.m3u8)"
+          value="https://stream.fastpix.com/6a56b3ae-b7b6-4241-bcca-7ba98254bab3.m3u8"
+        />
+        <button class="btn-primary"  id="btn-load">Load</button>
+        <button class="btn-secondary" id="btn-stop" disabled>Stop</button>
+        <button class="btn-danger"   id="btn-destroy" disabled>Destroy</button>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-item"><span class="info-label">Status</span><span id="info-status">Idle</span></div>
+        <div class="info-item"><span class="info-label">Level</span><span id="info-level">—</span></div>
+        <div class="info-item"><span class="info-label">Bitrate</span><span id="info-bitrate">—</span></div>
+        <div class="info-item"><span class="info-label">Resolution</span><span id="info-resolution">—</span></div>
+        <div class="info-item"><span class="info-label">Buffer (s)</span><span id="info-buffer">—</span></div>
+        <div class="info-item"><span class="info-label">Latency</span><span id="info-latency">—</span></div>
+      </div>
+    </div>
+
+    <div class="log-panel">
+      <h2>Event Log <button class="btn-secondary" id="btn-clear-log" style="font-size:0.7rem;padding:3px 10px;">Clear</button></h2>
+      <div id="log-output"></div>
+    </div>
+
+    <!-- HLS.js CDN -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/hls.js@1.6.16/dist/hls.min.js"
+      integrity="sha384-5E8B0pTlZZJMabWpC0fyYf6OUpe15jJij34BqBAh4NXoHAlLNOjCPRrwtOXOQFAn"
+      crossorigin="anonymous"
+    ></script>
+    <script src="../dist/index.js"></script>
+
+    <script>
+      // ─── Configuration ────────────────────────────────────────────────────────
+      // Replace with your actual FastPix workspace key.
+      const WORKSPACE_KEY = "YOUR_WORKSPACE_KEY";
+
+      // ─── DOM refs ────────────────────────────────────────────────────────────
+      const videoEl      = document.getElementById("video-player");
+      const urlInput     = document.getElementById("stream-url");
+      const btnLoad      = document.getElementById("btn-load");
+      const btnStop      = document.getElementById("btn-stop");
+      const btnDestroy   = document.getElementById("btn-destroy");
+      const btnClearLog  = document.getElementById("btn-clear-log");
+      const logOutput    = document.getElementById("log-output");
+      const sdkBadge     = document.getElementById("sdk-badge");
+
+      const infoStatus     = document.getElementById("info-status");
+      const infoLevel      = document.getElementById("info-level");
+      const infoBitrate    = document.getElementById("info-bitrate");
+      const infoResolution = document.getElementById("info-resolution");
+      const infoBuffer     = document.getElementById("info-buffer");
+      const infoLatency    = document.getElementById("info-latency");
+
+      // ─── Logger ───────────────────────────────────────────────────────────────
+      function log(msg, cls = "log-info") {
+        const ts   = new Date().toLocaleTimeString("en", { hour12: false });
+        const line = document.createElement("div");
+        line.className = cls;
+        line.textContent = `[${ts}] ${msg}`;
+        logOutput.appendChild(line);
+        logOutput.scrollTop = logOutput.scrollHeight;
+      }
+
+      btnClearLog.addEventListener("click", () => { logOutput.innerHTML = ""; });
+
+      // ─── State ────────────────────────────────────────────────────────────────
+      let hlsInstance = null;
+
+      // ─── Helpers ─────────────────────────────────────────────────────────────
+      function fmtBitrate(bps) {
+        if (!bps) return "—";
+        return bps > 1e6 ? (bps / 1e6).toFixed(2) + " Mbps"
+                         : (bps / 1e3).toFixed(0) + " kbps";
+      }
+
+      function updateBuffer() {
+        if (!videoEl.buffered.length) { infoBuffer.textContent = "—"; return; }
+        const buf = videoEl.buffered.end(videoEl.buffered.length - 1) - videoEl.currentTime;
+        infoBuffer.textContent = buf.toFixed(1) + "s";
+      }
+
+      setInterval(updateBuffer, 1000);
+
+      // ─── Load & Initialise ────────────────────────────────────────────────────
+      function loadPlayer() {
+        const url = urlInput.value.trim();
+        if (!url) { log("Enter an HLS stream URL first.", "log-warn"); return; }
+
+        const playerInitTime = Date.now();
+        destroyPlayer();
+
+        if (!Hls.isSupported()) {
+          if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+            // Native HLS (Safari)
+            videoEl.src = url;
+            log("Native HLS playback (Safari)", "log-info");
+            initFastPix(null, url, playerInitTime);
+          } else {
+            log("HLS is not supported in this browser.", "log-error");
+            sdkBadge.className = "badge error";
+          }
+          return;
+        }
+
+        hlsInstance = new Hls({
+          debug: false,
+          enableWorker: true,
+          lowLatencyMode: false,
+        });
+
+        hlsInstance.loadSource(url);
+        hlsInstance.attachMedia(videoEl);
+
+        // ─── HLS.js events ──────────────────────────────────────────────────
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+          infoStatus.textContent = "Manifest parsed";
+          log(`Manifest parsed — ${data.levels.length} quality level(s)`, "log-info");
+          videoEl.play().catch(() => {});
+        });
+
+        hlsInstance.on(Hls.Events.LEVEL_SWITCHING, (event, data) => {
+          infoLevel.textContent = `L${data.level}`;
+          log(`Quality switch → level ${data.level}`, "log-quality");
+        });
+
+        hlsInstance.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+          const level = hlsInstance.levels[data.level];
+          if (level) {
+            infoBitrate.textContent    = fmtBitrate(level.bitrate);
+            infoResolution.textContent = `${level.width}×${level.height}`;
+          }
+        });
+
+        hlsInstance.on(Hls.Events.FRAG_LOADED, (event, data) => {
+          const latency = data.frag.stats?.loading?.end - data.frag.stats?.loading?.start;
+          if (latency) infoLatency.textContent = latency.toFixed(0) + "ms";
+        });
+
+        hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+          log(`HLS error [${data.type}] ${data.details}${data.fatal ? " (FATAL)" : ""}`, "log-error");
+          infoStatus.textContent = "Error";
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              hlsInstance.startLoad();
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              hlsInstance.recoverMediaError();
+            } else {
+              destroyPlayer();
+            }
+          }
+        });
+
+        // ─── HTML5 video events ──────────────────────────────────────────────
+        videoEl.addEventListener("playing",  () => { infoStatus.textContent = "Playing";  log("playing",  "log-event"); });
+        videoEl.addEventListener("pause",    () => { infoStatus.textContent = "Paused";   log("pause",    "log-event"); });
+        videoEl.addEventListener("waiting",  () => { infoStatus.textContent = "Buffering";log("waiting",  "log-warn");  });
+        videoEl.addEventListener("ended",    () => { infoStatus.textContent = "Ended";    log("ended",    "log-event"); });
+        videoEl.addEventListener("seeked",   () =>  log("seeked",   "log-event"));
+        videoEl.addEventListener("error",    () =>  log("video element error", "log-error"));
+
+        initFastPix(hlsInstance, url, playerInitTime);
+
+        btnLoad.disabled    = false;
+        btnStop.disabled    = false;
+        btnDestroy.disabled = false;
+      }
+
+      // ─── FastPix SDK init ─────────────────────────────────────────────────────
+      function initFastPix(hlsjs, streamUrl, playerInitTime) {
+        if (!globalThis.fastpixMetrix) {
+          log("FastPix SDK not found — build the project first: npm run build", "log-warn");
+          sdkBadge.textContent = "SDK missing";
+          sdkBadge.className   = "badge error";
+          return;
+        }
+
+        try {
+          globalThis.fastpixMetrix.tracker(videoEl, {
+            debug: true,
+            hlsjs:  hlsjs,
+            Hls:    typeof Hls === "undefined" ? undefined : Hls,
+            data: {
+              workspace_id:      WORKSPACE_KEY,
+              player_name:       "HLS.js Test Player",
+              player_version:    "1.0.0",
+              player_init_time:  playerInitTime,
+              video_title:       "HLS Test Stream",
+              video_id:          "hls-test-001",
+              viewer_id:         "test-viewer-hls",
+              video_stream_type: "on-demand",
+            },
+          });
+
+          log("FastPix SDK initialised", "log-info");
+          sdkBadge.textContent = "FastPix ✓";
+          sdkBadge.className   = "badge";
+        } catch (err) {
+          log("FastPix SDK init error: " + err.message, "log-error");
+          sdkBadge.textContent = "SDK error";
+          sdkBadge.className   = "badge error";
+        }
+      }
+
+      // ─── Stop / Destroy ───────────────────────────────────────────────────────
+      function stopPlayer() {
+        videoEl.pause();
+        infoStatus.textContent = "Stopped";
+        log("Playback stopped", "log-warn");
+      }
+
+      function destroyPlayer() {
+        if (videoEl.fp) {
+          try { videoEl.fp.destroy(); } catch (err) { console.warn("fp destroy error", err); }
+        }
+        if (hlsInstance) {
+          hlsInstance.destroy();
+          hlsInstance = null;
+        }
+        videoEl.removeAttribute("src");
+        videoEl.load();
+        infoStatus.textContent     = "Idle";
+        infoLevel.textContent      = "—";
+        infoBitrate.textContent    = "—";
+        infoResolution.textContent = "—";
+        infoBuffer.textContent     = "—";
+        infoLatency.textContent    = "—";
+        btnStop.disabled    = true;
+        btnDestroy.disabled = true;
+        log("Player destroyed", "log-warn");
+      }
+
+      // ─── Button wiring ────────────────────────────────────────────────────────
+      btnLoad.addEventListener("click",    loadPlayer);
+      btnStop.addEventListener("click",    stopPlayer);
+      btnDestroy.addEventListener("click", destroyPlayer);
+
+      urlInput.addEventListener("keydown", (e) => { if (e.key === "Enter") loadPlayer(); });
+
+      log("HLS.js test page ready — click Load to start");
+    </script>
+  </body>
+</html>

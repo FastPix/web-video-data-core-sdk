@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.8]
+### Changed
+- Switched to native `crypto` APIs for random number and UUID generation, removing the external `uuid` dependency and reducing bundle size.
+- Updated the default metrics collection endpoint domain.
+- Added local test pages for HLS and DASH player integration.
+- General code sanitization and hygiene improvements across the SDK internals to enhance reliability and long-term maintainability.
+
 ## [1.0.7]
 ### Changed
 - Updated the SDK’s default metrics collection domain to improve endpoint reliability and alignment with current infrastructure.

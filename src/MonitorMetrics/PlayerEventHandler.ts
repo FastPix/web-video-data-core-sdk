@@ -39,7 +39,7 @@ const keyParams = [
   "video_id",
   "player_instance_id",
 ];
-const videoStateKeys = [
+const videoStateKeys = new Set([
   "player_is_paused",
   "player_width",
   "player_height",
@@ -55,8 +55,8 @@ const videoStateKeys = [
   "video_poster_url",
   "player_language_code",
   "view_dropped_frame_count",
-];
-const eventHandler = ["viewBegin", "error", "ended", "viewCompleted"];
+]);
+const eventHandler = new Set(["viewBegin", "error", "ended", "viewCompleted"]);
 let previousVideoState: any = {};
 
 export class PlaybackEventHandler {
@@ -87,13 +87,12 @@ export class PlaybackEventHandler {
     this.previousBeaconData = null;
     this.sdkPageDetails = {
       viewer_connection_type: getNetworkConnection(),
-      page_url: typeof window !== "undefined" ? window?.location?.href : "",
+      page_url: window === undefined ? "" : window?.location?.href,
     };
 
-    const canAccessDocument = typeof document !== "undefined";
-    this.userData = (this.disableCookies || !canAccessDocument)
-      ? {}
-      : getViewerCookie();
+    const canAccessDocument = document !== undefined;
+    this.userData =
+      !this.disableCookies && canAccessDocument ? getViewerCookie() : {};
   }
 
   sendData(event: string, obj: EventMetaData): void {
@@ -122,7 +121,7 @@ export class PlaybackEventHandler {
 
     if (event === "viewCompleted") {
       this.eventQueue.destroy(true);
-    } else if (eventHandler.includes(event)) {
+    } else if (eventHandler.has(event)) {
       this.eventQueue.processEventQueue();
     }
   }
@@ -153,9 +152,7 @@ export class PlaybackEventHandler {
 
   prepareEventData(event: string, obj: EventMetaData) {
     const cookieSessionData =
-      this.disableCookies || typeof document === "undefined"
-        ? {}
-        : this.updateCookies();
+      this.disableCookies || document === undefined ? {} : this.updateCookies();
 
     const data = mergeObjects(
       this.sdkPageDetails,
@@ -214,7 +211,7 @@ export class PlaybackEventHandler {
       const updatedClonedObj: any = {};
       const shadowState = Object.keys(clonedObj);
       shadowState.forEach((key) => {
-        if (!videoStateKeys.includes(key)) {
+        if (!videoStateKeys.has(key)) {
           updatedClonedObj[key] = clonedObj[key];
         }
       });
@@ -245,12 +242,12 @@ export class PlaybackEventHandler {
 
   updateCookies():
     | {
-      session_id: string;
-      session_start: string;
-      session_expiry_time: number | string;
-    }
+        session_id: string;
+        session_start: string;
+        session_expiry_time: number | string;
+      }
     | {} {
-    if (typeof document === "undefined") return {};
+    if (document === undefined) return {};
 
     const data: any = getViewerData();
     const cookieTimer = Date.now();
@@ -262,7 +259,7 @@ export class PlaybackEventHandler {
       data.fpsanu === "undefined"
     ) {
       data.fpviid = buildUUID();
-      data.fpsanu = Math.random();
+      data.fpsanu = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
     }
 
     if (
@@ -270,7 +267,7 @@ export class PlaybackEventHandler {
       !data.snid ||
       data.snid === "undefined" ||
       data.snst === "undefined" ||
-      cookieTimer - parseInt(data.snst) > 864e5
+      cookieTimer - Number.parseInt(data.snst, 10) > 864e5
     ) {
       data.snst = cookieTimer;
       data.snid = buildUUID();

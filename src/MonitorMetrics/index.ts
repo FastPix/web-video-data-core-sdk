@@ -38,6 +38,45 @@ const mapEvents = [
   "requestCanceled",
 ];
 
+function initializeResolutionState(instance: {
+  resolutionState: {
+    prev_source_width: any;
+    video_source_resolution_dropped_count: number;
+  };
+  data: {
+    video_source_width: any;
+    video_source_resolution_dropped_count: number;
+  };
+}) {
+  if (!instance.resolutionState) {
+    instance.resolutionState = {
+      prev_source_width: instance.data.video_source_width ?? 0,
+      video_source_resolution_dropped_count: 0,
+    };
+    instance.data.video_source_resolution_dropped_count = 0;
+  }
+}
+
+function updateResolutionState(instance: {
+  resolutionState: { prev_source_width: number };
+  data: {
+    video_source_width: number;
+    video_source_resolution_dropped_count: number;
+  };
+}) {
+  if (
+    instance.resolutionState.prev_source_width >
+    instance.data.video_source_width
+  ) {
+    instance.resolutionState.prev_source_width =
+      instance.data.video_source_width;
+    instance.data.video_source_resolution_dropped_count++;
+  } else {
+    instance.resolutionState.prev_source_width =
+      instance.data.video_source_width;
+  }
+}
+
 function nucleusState(
   this: any,
   self: any,
@@ -45,10 +84,9 @@ function nucleusState(
   actionableData: ActionableDataTypes,
 ): any {
   const eventEmitter = new ListenerManager();
-  const fileInstance = this;
-  fileInstance.NavigationStart = customTimerModule.getNavigationStartTime();
-  fileInstance.fp = self;
-  fileInstance.id = token;
+  this.NavigationStart = customTimerModule.getNavigationStartTime();
+  this.fp = self;
+  this.id = token;
   const defaultConfig = {
     debug: actionableData?.debug ?? false,
     beaconDomain: actionableData.configDomain ?? "anlytix.io",
@@ -65,42 +103,38 @@ function nucleusState(
     ...defaultConfig,
     actionableData,
   };
-  fileInstance.userConfigData = actionableData;
-  fileInstance.fetchPlayheadTime =
-    actionableData.actionableData.fetchPlayheadTime;
-  fileInstance.fetchStateData =
+  this.userConfigData = actionableData;
+  this.fetchPlayheadTime = actionableData.actionableData.fetchPlayheadTime;
+  this.fetchStateData =
     actionableData.actionableData.fetchStateData ??
     function () {
       return {};
     };
-  fileInstance.allowRebufferTracking = actionableData.allowRebufferTracking;
-  fileInstance.disablePlayheadRebufferTracking =
+  this.allowRebufferTracking = actionableData.allowRebufferTracking;
+  this.disablePlayheadRebufferTracking =
     actionableData.disablePlayheadRebufferTracking;
-  fileInstance.errorConverter = actionableData.errorConverter;
-  fileInstance.eventsDispatcher = new PlaybackEventHandler(
+  this.errorConverter = actionableData.errorConverter;
+  this.eventsDispatcher = new PlaybackEventHandler(
     self,
     actionableData.actionableData.data.workspace_id,
     actionableData,
   );
-  fileInstance.data = {
+  this.data = {
     player_instance_id: buildUUID(),
     beacon_domain:
       actionableData.beaconCollectionDomain ?? actionableData.beaconDomain,
   };
-  fileInstance.data.view_sequence_number = 1;
-  fileInstance.data.player_sequence_number = 1;
-  fileInstance.lastCheckedEventTime = void 0;
-  fileInstance.throbTimeoutId = undefined;
+  this.data.view_sequence_number = 1;
+  this.data.player_sequence_number = 1;
+  this.lastCheckedEventTime = void 0;
+  this.throbTimeoutId = undefined;
 
-  fileInstance.dispatch = function (
-    name: string,
-    eventData: ActionableDataTypes,
-  ) {
+  this.dispatch = (name: string, eventData: ActionableDataTypes) => {
     const currentTime = Date.now();
 
     if (
-      fileInstance.lastCheckedEventTime &&
-      currentTime - fileInstance.lastCheckedEventTime > 36e5
+      this.lastCheckedEventTime &&
+      currentTime - this.lastCheckedEventTime > 36e5
     ) {
       if (actionableData?.debug) {
         console.warn(
@@ -109,21 +143,21 @@ function nucleusState(
       }
 
       const configViewData = {
-        viewer_timestamp: fileInstance.fp.utilityMethods.now(),
+        viewer_timestamp: this.fp.utilityMethods.now(),
       };
-      Object.assign(fileInstance.data, configViewData);
+      Object.assign(this.data, configViewData);
       eventEmitter.emit("configureView", configViewData);
-      fileInstance.lastCheckedEventTime = currentTime;
+      this.lastCheckedEventTime = currentTime;
     }
 
     if (name === "play") {
-      if (fileInstance.data.view_start === void 0) {
+      if (this.data.view_start === void 0) {
         const viewBeginData = {
-          view_start: fileInstance.fp.utilityMethods.now(),
+          view_start: this.fp.utilityMethods.now(),
         };
-        Object.assign(fileInstance.data, viewBeginData);
+        Object.assign(this.data, viewBeginData);
         eventEmitter.emit("viewBegin", viewBeginData);
-        fileInstance.lastCheckedEventTime = currentTime;
+        this.lastCheckedEventTime = currentTime;
       }
     }
 
@@ -132,191 +166,126 @@ function nucleusState(
     }
 
     const eventPayload = {
-      viewer_timestamp: fileInstance.fp.utilityMethods.now(),
+      viewer_timestamp: this.fp.utilityMethods.now(),
       ...eventData,
     };
 
     if (name !== "videoChange" && name !== "programChange") {
-      Object.assign(fileInstance.data, eventPayload);
+      Object.assign(this.data, eventPayload);
     }
     eventEmitter.emit(name, eventPayload);
-    fileInstance.lastCheckedEventTime = currentTime;
+    this.lastCheckedEventTime = currentTime;
   };
 
-  fileInstance.playerDestroyed = void 0;
-  fileInstance.initiatePulse = void 0;
-  let destroyerFunction = function () {
-    fileInstance.demolishView();
+  this.playerDestroyed = void 0;
+  this.initiatePulse = void 0;
+  const destroyerFunction = () => {
+    this.demolishView();
   };
 
-  if (
-    typeof window !== "undefined" &&
-    typeof window.addEventListener !== "undefined"
-  ) {
+  if (window?.addEventListener !== undefined) {
     window.addEventListener(
       "pagehide",
-      function (event) {
+      (event) => {
         if (!event.persisted) {
           destroyerFunction();
         }
       },
       false,
     );
-    window.addEventListener("beforeunload", function () {
+    window.addEventListener("beforeunload", () => {
       destroyerFunction();
     });
   }
 
-  eventEmitter.on("destroy", function () {
+  eventEmitter.on("destroy", () => {
     destroyerFunction();
   });
 
-  function onViewChange(viewchange: ActionableDataTypes) {
-    fileInstance.dispatch("viewCompleted");
-    fileInstance.filterData("viewCompleted");
-    fileInstance.dispatch("configureView", viewchange);
-    Object.assign(fileInstance.data, viewchange);
-  }
+  const onViewChange = (viewchange: ActionableDataTypes) => {
+    this.dispatch("viewCompleted");
+    this.filterData("viewCompleted");
+    this.dispatch("configureView", viewchange);
+    Object.assign(this.data, viewchange);
+  };
 
-  eventEmitter.on("videoChange", function (newdata: ActionableDataTypes) {
+  eventEmitter.on("videoChange", (newdata: ActionableDataTypes) => {
     onViewChange(newdata);
   });
 
-  eventEmitter.on("programChange", function (newdata: ActionableDataTypes) {
+  eventEmitter.on("programChange", (newdata: ActionableDataTypes) => {
     const onProgramChange = { ...newdata };
     onViewChange(onProgramChange);
-    fileInstance.dispatch("play");
-    fileInstance.dispatch("playing");
+    this.dispatch("play");
+    this.dispatch("playing");
   });
 
-  eventEmitter.on("configureView", function () {
-    fileInstance.refreshViewData();
-    fileInstance.refreshVideoData();
-    fileInstance.appendVideoState();
-    Object.assign(fileInstance.data, actionableData.actionableData.data);
-    fileInstance.initializeView();
+  eventEmitter.on("configureView", () => {
+    this.refreshViewData();
+    this.refreshVideoData();
+    this.appendVideoState();
+    Object.assign(this.data, actionableData.actionableData.data);
+    this.initializeView();
   });
 
-  fileInstance.warning = new ErrorManager(fileInstance, eventEmitter);
-  fileInstance.gripper = new VideoSeekTracker(fileInstance, eventEmitter);
-  fileInstance.throughput = new RequestMetricsMonitor(
-    fileInstance,
-    eventEmitter,
-  );
-  fileInstance.playheadHandler = new PlayheadPositionHandler(
-    fileInstance,
-    eventEmitter,
-  );
-  fileInstance.handlePulse = new PlaybackPulseHandler(
-    fileInstance,
-    eventEmitter,
-  );
-  fileInstance.handleScaling = new VideoResolutionHandler(
-    fileInstance,
-    eventEmitter,
-  );
-  fileInstance.trackTimer = new WallClockTimeTracker(
-    fileInstance,
-    eventEmitter,
-  );
-  fileInstance.playbackManager = new PlaybackProgressMonitor(
-    fileInstance,
-    eventEmitter,
-  );
-  fileInstance.eventWaiting = new BufferMonitor(fileInstance, eventEmitter);
-  fileInstance.loaderProps = new BufferProcessor(fileInstance, eventEmitter);
-  fileInstance.metricCommencement = new PlaybackStartupMonitor(
-    fileInstance,
-    eventEmitter,
-  );
-
-  // Function to initialize resolutionState if it doesn't exist
-  function initializeResolutionState(fileInstance: {
-    resolutionState: {
-      prev_source_width: any;
-      video_source_resolution_dropped_count: number;
-    };
-    data: {
-      video_source_width: any;
-      video_source_resolution_dropped_count: number;
-    };
-  }) {
-    if (!fileInstance.resolutionState) {
-      fileInstance.resolutionState = {
-        prev_source_width: fileInstance.data.video_source_width ?? 0,
-        video_source_resolution_dropped_count: 0,
-      };
-      fileInstance.data.video_source_resolution_dropped_count = 0;
-    }
-  }
-
-  // Function to handle the resolution state update
-  function updateResolutionState(fileInstance: {
-    resolutionState: { prev_source_width: number };
-    data: {
-      video_source_width: number;
-      video_source_resolution_dropped_count: number;
-    };
-  }) {
-    if (
-      fileInstance.resolutionState.prev_source_width >
-      fileInstance.data.video_source_width
-    ) {
-      fileInstance.resolutionState.prev_source_width =
-        fileInstance.data.video_source_width;
-      fileInstance.data.video_source_resolution_dropped_count++;
-    } else {
-      fileInstance.resolutionState.prev_source_width =
-        fileInstance.data.video_source_width;
-    }
-  }
+  this.warning = new ErrorManager(this, eventEmitter);
+  this.gripper = new VideoSeekTracker(this, eventEmitter);
+  this.throughput = new RequestMetricsMonitor(this, eventEmitter);
+  this.playheadHandler = new PlayheadPositionHandler(this, eventEmitter);
+  this.handlePulse = new PlaybackPulseHandler(this, eventEmitter);
+  this.handleScaling = new VideoResolutionHandler(this, eventEmitter);
+  this.trackTimer = new WallClockTimeTracker(this, eventEmitter);
+  this.playbackManager = new PlaybackProgressMonitor(this, eventEmitter);
+  this.eventWaiting = new BufferMonitor(this, eventEmitter);
+  this.loaderProps = new BufferProcessor(this, eventEmitter);
+  this.metricCommencement = new PlaybackStartupMonitor(this, eventEmitter);
 
   // Event listener for 'variantChanged'
-  eventEmitter.on("variantChanged", function () {
-    if (fileInstance.data.video_source_width) {
-      initializeResolutionState(fileInstance);
-      updateResolutionState(fileInstance);
+  eventEmitter.on("variantChanged", () => {
+    if (this.data.video_source_width) {
+      initializeResolutionState(this);
+      updateResolutionState(this);
     }
-    fileInstance.appendVideoState();
-    fileInstance.validateData();
-    fileInstance.filterData("variantChanged");
+    this.appendVideoState();
+    this.validateData();
+    this.filterData("variantChanged");
   });
 
-  eventEmitter.on("playerReady", function () {
-    const currentTime = fileInstance.fp.utilityMethods.now();
+  eventEmitter.on("playerReady", () => {
+    const currentTime = this.fp.utilityMethods.now();
 
-    if (fileInstance.data.player_init_time) {
-      const startupTime = currentTime - fileInstance.data.player_init_time;
-      fileInstance.data.player_startup_time = startupTime > 0 ? startupTime : 0;
+    if (this.data.player_init_time) {
+      const startupTime = currentTime - this.data.player_init_time;
+      this.data.player_startup_time = Math.max(0, startupTime);
     }
 
-    if (fileInstance.NavigationStart) {
+    if (this.NavigationStart) {
       if (
-        fileInstance.data.player_init_time ??
+        this.data.player_init_time ??
         customTimerModule.getDomContentLoadedEnd()
       ) {
         const pageLoadTime =
           Math.min(
-            fileInstance.data.player_init_time ?? 1 / 0,
+            this.data.player_init_time ?? 1 / 0,
             customTimerModule.getDomContentLoadedEnd() ?? 1 / 0,
-          ) - fileInstance.NavigationStart;
-        fileInstance.data.page_load_time = pageLoadTime > 0 ? pageLoadTime : 0;
+          ) - this.NavigationStart;
+        this.data.page_load_time = Math.max(0, pageLoadTime);
       }
     }
-    fileInstance.appendVideoState();
-    fileInstance.validateData();
-    fileInstance.filterData("playerReady");
+    this.appendVideoState();
+    this.validateData();
+    this.filterData("playerReady");
   });
 
-  mapEvents.forEach(function (key) {
-    eventEmitter.on(key, function () {
-      fileInstance.appendVideoState();
-      fileInstance.validateData();
-      fileInstance.filterData(key);
+  mapEvents.forEach((key) => {
+    eventEmitter.on(key, () => {
+      this.appendVideoState();
+      this.validateData();
+      this.filterData(key);
     });
   });
 
-  fileInstance.dispatch("configureView");
+  this.dispatch("configureView");
 }
 
 nucleusState.prototype.demolishView = function () {
@@ -332,9 +301,8 @@ nucleusState.prototype.demolishView = function () {
 };
 
 nucleusState.prototype.initializeView = function () {
-  const initself = this;
   this.data.view_id = buildUUID();
-  metricUpdation(initself.data, "player_view_count", 1);
+  metricUpdation(this.data, "player_view_count", 1);
 };
 
 nucleusState.prototype.appendVideoState = function () {
@@ -353,7 +321,8 @@ nucleusState.prototype.validateData = function () {
   ];
   const urlKeys = ["player_source_url", "video_source_url"];
   numericalKeys.forEach(
-    (key) => (this.data[key] = parseInt(this.data[key], 10) ?? undefined),
+    (key) =>
+      (this.data[key] = Number.parseInt(this.data[key], 10) ?? undefined),
   );
   urlKeys.forEach((paramName) => {
     const excludes = (this.data[paramName] ?? "").toLowerCase();
@@ -411,20 +380,18 @@ nucleusState.prototype.handlePulseEvent = (instance: any) => {
 };
 
 nucleusState.prototype.refreshViewData = function () {
-  const view = this;
-  Object.keys(this.data).forEach(function (k) {
+  Object.keys(this.data).forEach((k) => {
     if (0 === k.indexOf("view_")) {
-      delete view.data[k];
+      delete this.data[k];
     }
   });
   this.data.view_sequence_number = 1;
 };
 
 nucleusState.prototype.refreshVideoData = function () {
-  const video = this;
-  Object.keys(this.data).forEach(function (k) {
+  Object.keys(this.data).forEach((k) => {
     if (0 === k.indexOf("video_")) {
-      delete video.data[k];
+      delete this.data[k];
     }
   });
 };

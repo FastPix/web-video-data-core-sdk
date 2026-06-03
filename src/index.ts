@@ -31,6 +31,10 @@ const browserErrors: any = {
   4: "MEDIA_ERR_SRC_NOT_SUPPORTED",
 };
 
+const determinePreloadType = function (data: string) {
+  return ["auto", "metadata"].includes(data);
+};
+
 const fastpixMetrix = {
   tracker: function (videoTag: any, userData: EventMetaData) {
     const videoParams = analyzeVideo(videoTag);
@@ -47,8 +51,6 @@ const fastpixMetrix = {
     } else if (dashPlayer) {
       playerType = "dash";
     }
-    const targetObject = this;
-
     if (!videoContainer) {
       return console.error(
         "There are no elements found matching the query selector " +
@@ -98,11 +100,7 @@ const fastpixMetrix = {
       player_software_version: playerConfig.version,
       player_fastpix_sdk_name: playerConfig.sdk,
       player_fastpix_sdk_version: "1.0.5",
-      ...userData.data
-    };
-
-    const determinePreloadType = function (data: string) {
-      return ["auto", "metadata"].includes(data);
+      ...userData.data,
     };
 
     userData.fetchPlayheadTime = function () {
@@ -168,11 +166,8 @@ const fastpixMetrix = {
     };
 
     (videoContainer as any).fp = (videoContainer as any).fp ?? {};
-    (videoContainer as any).fp.dispatch = function (
-      name: string,
-      eventName: any,
-    ) {
-      targetObject.dispatch(videoId, name, eventName);
+    (videoContainer as any).fp.dispatch = (name: string, eventName: any) => {
+      this.dispatch(videoId, name, eventName);
     };
     (videoContainer as any).fp.listeners = {};
     (videoContainer as any).fp.deleted = false;
@@ -202,20 +197,20 @@ const fastpixMetrix = {
       delete (videoContainer as any)?.fp;
     };
 
-    targetObject.configure(videoId, userData);
-    targetObject.dispatch(videoId, "playerReady");
+    this.configure(videoId, userData);
+    this.dispatch(videoId, "playerReady");
 
     if (!(videoContainer as HTMLVideoElement).paused) {
-      targetObject.dispatch(videoId, "play");
+      this.dispatch(videoId, "play");
 
       if ((videoContainer as HTMLVideoElement).readyState > 2) {
-        targetObject.dispatch(videoId, "playing");
+        this.dispatch(videoId, "playing");
       }
     }
 
-    html5VideoEvents.forEach(function (event) {
-      if (!("error" === event && !userData.automaticErrorTracking)) {
-        (videoContainer as any).fp.listeners[event] = function () {
+    html5VideoEvents.forEach((event) => {
+      if ("error" !== event || userData.automaticErrorTracking) {
+        (videoContainer as any).fp.listeners[event] = () => {
           let browserObj: any = {};
 
           if ("error" === event) {
@@ -232,7 +227,7 @@ const fastpixMetrix = {
               browserErrors[(videoContainer as any).error?.code] ??
               (videoContainer as HTMLVideoElement).error?.message;
           }
-          targetObject.dispatch(videoId, event, browserObj);
+          this.dispatch(videoId, event, browserObj);
         };
         videoContainer.addEventListener(
           event,
@@ -334,6 +329,6 @@ const fastpixMetrix = {
 
 export default fastpixMetrix;
 
-if (typeof window !== "undefined") {
+if (window !== undefined) {
   (window as any).fastpixMetrix = fastpixMetrix;
 }

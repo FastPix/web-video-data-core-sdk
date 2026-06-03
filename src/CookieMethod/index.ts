@@ -53,7 +53,9 @@ const getViewerCookie = (): {
   const fpViewerId =
     data.fpviid !== "undefined" && data.fpviid ? data.fpviid : buildUUID();
   const fpSampleNumber =
-    data.fpsanu !== "undefined" && data.fpsanu ? data.fpsanu : Math.random();
+    data.fpsanu !== "undefined" && data.fpsanu
+      ? data.fpsanu
+      : crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
   data.fpviid = fpViewerId;
   data.fpsanu = fpSampleNumber;
   updateViewerCookie(data);

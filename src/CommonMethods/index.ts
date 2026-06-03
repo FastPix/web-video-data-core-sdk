@@ -169,11 +169,7 @@ const timestamp: {
   now: () => number;
 } = {
   now: function () {
-    if (typeof Date.now === "function") {
-      return Date.now();
-    } else {
-      return new Date().getTime();
-    }
+    return Date.now();
   },
 };
 
@@ -181,7 +177,7 @@ const timestamp: {
 const customTimerModule = {
   isPerformanceAvailable: function () {
     const perf = (window as any).performance;
-    return perf && perf.timing !== undefined;
+    return perf?.timing !== undefined;
   },
 
   getDomContentLoadedEnd: function () {

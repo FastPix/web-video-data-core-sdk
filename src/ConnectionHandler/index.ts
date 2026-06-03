@@ -87,9 +87,7 @@ export class ConnectionHandler {
 
   purgeBeaconQueue(): void {
     const excessLength = this.eventStack.length - 200;
-    const trimmedStack = this.eventStack.slice(
-      excessLength > 0 ? excessLength : 0,
-    );
+    const trimmedStack = this.eventStack.slice(Math.max(0, excessLength));
     const postData = this.generatePayload(trimmedStack);
 
     if (!this.actionableData?.actionableData?.respectDoNotTrack) {
@@ -129,7 +127,7 @@ export class ConnectionHandler {
           this.emitBeaconQueue();
         }
         this.triggerBeaconDispatch();
-      }, 1e4) as unknown as number;
+      }, 1e4);
     }
   }
 
