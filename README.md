@@ -8,7 +8,7 @@ FastPix Video Data Core SDK monitors and analyzes **HLS.js** and **DASH.js** vid
 - Error logs and diagnostics
 - User interaction events
 
-The SDK instantly collects and sends all metrics to the [FastPix dashboard](https://dashboard.fastpix.io) for easy viewing. Currently available as a JavaScript bundle, with TypeScript support coming soon.
+The SDK instantly collects and sends all metrics to the [FastPix dashboard](https://dashboard.fastpix.com) for easy viewing. Currently available as a JavaScript bundle, with TypeScript support coming soon.
 
 # Prerequisites:
 
@@ -16,7 +16,7 @@ The SDK instantly collects and sends all metrics to the [FastPix dashboard](http
 
 To begin tracking your video analytics, you'll need your FastPix workspace key. Here's how to get it:
 
-1. Sign up or login to [FastPix Dashboard](https://dashboard.fastpix.io).
+1. Sign up or login to [FastPix Dashboard](https://dashboard.fastpix.com).
 2. Navigate to the workspace page.
 3. Copy your preferred workspace key.
 
@@ -116,11 +116,11 @@ fastpixMetrix.tracker(videoPlayerElement, {
 });
 ```
 
-Once the player has loaded the URL and playback has started, the SDK will begin tracking the analytics. After playback ends, you can view the complete analytics report on your [FastPix dashboard](https://dashboard.fastpix.io).
+Once the player has loaded the URL and playback has started, the SDK will begin tracking the analytics. After playback ends, you can view the complete analytics report on your [FastPix dashboard](https://dashboard.fastpix.com).
 
 # Step 4: Enhance Tracking with User Passable Metadata
 
-Check out the [user-passable metadata](https://docs.fastpix.io/docs/user-passable-metadata-1) documentation to see the metadata supported by FastPix. You can use custom metadata fields like `custom_1` to `custom_10` for your business logic, giving you the flexibility to pass any required values. Named attributes, such as `video_title` and `video_id`, can be passed directly as they are.
+Check out the [user-passable metadata](https://fastpix.com/docs/working-with-video-data/pass-custom-metadata-to-metrics) documentation to see the metadata supported by FastPix. You can use custom metadata fields like `custom_1` to `custom_10` for your business logic, giving you the flexibility to pass any required values. Named attributes, such as `video_title` and `video_id`, can be passed directly as they are.
 
 ```javascript
 import fastpixMetrix from "@fastpix/video-data-core";
@@ -228,5 +228,5 @@ videoPlayerElement.fp.dispatch("videoChange", {
 # Detailed Usage:
 
 For more detailed steps and advanced usage, please refer to our official documentation:
-- [HLS.js Monitoring Documentation](https://docs.fastpix.io/docs/monitor-hlsjs)
-- [DASH.js Monitoring Documentation](https://docs.fastpix.io/docs/monitor-dashjs)
+- [HLS.js Monitoring Documentation](https://fastpix.com/docs/web-players/monitor-hlsjs)
+- [DASH.js Monitoring Documentation](https://fastpix.com/docs/web-players/monitor-dashjs)
