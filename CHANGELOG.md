@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.9]
+### Fixed
+- SSR crash: importing the SDK in Node/server environments (e.g. Next.js server rendering) threw `ReferenceError: window is not defined` due to an unsafe `window !== undefined` guard; now uses `typeof window !== "undefined"`.
+
+### Added
+- Bundled TypeScript declarations (`dist/index.d.ts`): typed `fastpixMetrix` API, exported `EventMetaData` tracker-config type, and global typing for the `fp` monitoring handle attached to media elements.
+- `player_fastpix_sdk_name` and `player_fastpix_sdk_version` declared in the metadata types.
+
+### Changed
+- `player_init_time` now accepts `number | string`, matching attribute-driven players that read it via `getAttribute`. No runtime change - the SDK's arithmetic already coerced numeric strings.
+- Build migrated from esbuild CLI scripts to tsup (identical output filenames); `tsc --noEmit` type-check now runs as part of the build.
+- Removed unused `@types/node` dev dependency.
+
 ## [1.0.8]
 ### Changed
 - Switched to native `crypto` APIs for random number and UUID generation, removing the external `uuid` dependency and reducing bundle size.

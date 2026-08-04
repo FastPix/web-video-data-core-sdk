@@ -97,7 +97,7 @@ interface UserCustomDataType {
   viewer_id?: string;
   experiment_name?: string;
   page_context?: string;
-  player_init_time?: number;
+  player_init_time?: number | string; // Accepts a string because attribute-driven players read it via getAttribute;
   player_name?: string;
   player_version?: string;
   sub_property_id?: string;
@@ -141,6 +141,8 @@ interface OverrideableMetaData {
   player_remote_played?: boolean;
   player_software_name?: string;
   player_software_version?: string;
+  player_fastpix_sdk_name?: string;
+  player_fastpix_sdk_version?: string;
   video_source_height?: string;
   video_source_width?: string;
   player_width?: string;
@@ -153,11 +155,14 @@ interface OverrideableMetaData {
   device_name?: string;
 }
 
-interface EventMetaData extends EventsInterface, UserCustomDataType {
-  dashPlayer: any;
-  dashjs: any;
-  debug: any;
-  fetchStateData: () => {
+interface EventMetaData extends Partial<EventsInterface>, UserCustomDataType {
+  dashPlayer?: any;
+  dashjs?: any;
+  debug?: boolean;
+  disableCookies?: boolean;
+  respectDoNotTrack?: boolean;
+  configDomain?: string;
+  fetchStateData?: () => {
     player_is_paused: any;
     player_width: any;
     player_height: any;
@@ -174,11 +179,11 @@ interface EventMetaData extends EventsInterface, UserCustomDataType {
     player_language_code: any;
     view_dropped_frame_count: any;
   };
-  fetchPlayheadTime: () => number;
-  data: any;
-  automaticErrorTracking: any;
-  Hls: any;
-  hlsjs: any;
+  fetchPlayheadTime?: () => number;
+  data?: EventData;
+  automaticErrorTracking?: boolean;
+  Hls?: any;
+  hlsjs?: any;
 }
 
 interface EventData extends UserCustomDataType, OverrideableMetaData {}

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HLS.js Player — FastPix SDK Test</title>
+    <title>HLS.js Player — FastPix + Mux SDK Test</title>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -143,14 +143,18 @@
     <header>
       <h1>HLS.js Player
         <span class="badge" id="sdk-badge">FastPix SDK</span>
+        <span class="badge pending" id="mux-badge">Mux Data</span>
       </h1>
-      <p>HTML5 video player with HLS.js + FastPix analytics</p>
+      <p>HTML5 video player with HLS.js + FastPix &amp; Mux Data analytics</p>
     </header>
 
     <div class="player-card">
       <video id="video-player" controls playsinline></video>
 
       <div class="controls">
+        <label htmlFor="stream-url" className="sr-only">
+          HLS Stream URL
+        </label>
         <input
           type="text"
           id="stream-url"
@@ -185,10 +189,19 @@
     ></script>
     <script src="../dist/index.js"></script>
 
+    <!-- Mux Data SDK (HLS.js integration) -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/mux-embed@5/dist/mux.js"
+      integrity="sha384-Qsf8IHL4E2JxFsaEqaFkkLKzNtEvoXqU9Q4PMVCbxZ6ADdR+l6rZDrtCN+zS3q4a"
+      crossorigin="anonymous"
+    ></script>
+
     <script>
       // ─── Configuration ────────────────────────────────────────────────────────
-      // Replace with your actual FastPix workspace key.
+      // Replace WORKSPACE_KEY with your actual FastPix workspace key.
       const WORKSPACE_KEY = "YOUR_WORKSPACE_KEY";
+      // Replace MUX_ENV_KEY with your Mux Data environment key.
+      const MUX_ENV_KEY = "ENV_KEY";
 
       // ─── DOM refs ────────────────────────────────────────────────────────────
       const videoEl      = document.getElementById("video-player");
@@ -199,6 +212,7 @@
       const btnClearLog  = document.getElementById("btn-clear-log");
       const logOutput    = document.getElementById("log-output");
       const sdkBadge     = document.getElementById("sdk-badge");
+      const muxBadge     = document.getElementById("mux-badge");
 
       const infoStatus     = document.getElementById("info-status");
       const infoLevel      = document.getElementById("info-level");
@@ -220,7 +234,8 @@
       btnClearLog.addEventListener("click", () => { logOutput.innerHTML = ""; });
 
       // ─── State ────────────────────────────────────────────────────────────────
-      let hlsInstance = null;
+      let hlsInstance  = null;
+      let muxPlayerID  = null;
 
       // ─── Helpers ─────────────────────────────────────────────────────────────
       function fmtBitrate(bps) {
@@ -251,6 +266,7 @@
             videoEl.src = url;
             log("Native HLS playback (Safari)", "log-info");
             initFastPix(null, url, playerInitTime);
+            initMux(null, url, playerInitTime);
           } else {
             log("HLS is not supported in this browser.", "log-error");
             sdkBadge.className = "badge error";
@@ -315,6 +331,7 @@
         videoEl.addEventListener("error",    () =>  log("video element error", "log-error"));
 
         initFastPix(hlsInstance, url, playerInitTime);
+        initMux(hlsInstance, url, playerInitTime);
 
         btnLoad.disabled    = false;
         btnStop.disabled    = false;
@@ -325,8 +342,8 @@
       function initFastPix(hlsjs, streamUrl, playerInitTime) {
         if (!globalThis.fastpixMetrix) {
           log("FastPix SDK not found — build the project first: npm run build", "log-warn");
-          sdkBadge.textContent = "SDK missing";
-          sdkBadge.className   = "badge error";
+          sdkBadge.textContent    = "SDK missing";
+          sdkBadge.className      = "badge error";
           return;
         }
 
@@ -338,7 +355,7 @@
             data: {
               workspace_id:      WORKSPACE_KEY,
               player_name:       "HLS.js Test Player",
-              player_version:    "1.0.0",
+              player_version: "1.0.0",
               player_init_time:  playerInitTime,
               video_title:       "HLS Test Stream",
               video_id:          "hls-test-001",
@@ -354,6 +371,44 @@
           log("FastPix SDK init error: " + err.message, "log-error");
           sdkBadge.textContent = "SDK error";
           sdkBadge.className   = "badge error";
+        }
+      }
+
+      // ─── Mux Data SDK init ────────────────────────────────────────────────────
+      function initMux(hlsjs, streamUrl, playerInitTime) {
+        if (typeof mux === "undefined") {
+          log("Mux Data SDK not loaded", "log-warn");
+          muxBadge.textContent = "Mux missing";
+          muxBadge.className   = "badge error";
+          return;
+        }
+
+        try {
+          muxPlayerID = "hls-test-" + playerInitTime;
+          mux.monitor(videoEl, {
+            debug: false,
+            hlsjs: hlsjs,
+            Hls:   Hls,
+            data: {
+              env_key:           MUX_ENV_KEY,
+              player_name:       "HLS.js Test Player",
+              player_version:    "1.0.0",
+              player_init_time:  playerInitTime,
+              video_id:          muxPlayerID,
+              video_title:       "HLS Test Stream",
+              video_stream_type: "on-demand",
+              viewer_user_id:    "test-viewer-hls",
+              page_url:          globalThis.location.href,
+            },
+          });
+
+          log("Mux Data SDK initialised", "log-info");
+          muxBadge.textContent = "Mux ✓";
+          muxBadge.className   = "badge";
+        } catch (err) {
+          log("Mux SDK init error: " + err.message, "log-error");
+          muxBadge.textContent = "Mux error";
+          muxBadge.className   = "badge error";
         }
       }
 

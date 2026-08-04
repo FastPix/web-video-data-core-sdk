@@ -1,14 +1,16 @@
 {
   "name": "@fastpix/video-data-core",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "author": "FastPix, Inc",
   "license": "MIT",
   "description": "FastPix Video Data SDK for real-time monitoring of HTML5 video players.",
   "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist/*"
   ],
   "exports": {
+    "types": "./dist/index.d.ts",
     "import": "./dist/index.mjs",
     "require": "./dist/index.cjs",
     "default": "./dist/index.js"
@@ -31,15 +33,13 @@
   ],
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\"",
-    "build:esm": "esbuild src/index.ts --bundle --outfile=dist/index.mjs --format=esm --minify",
-    "build:cjs": "esbuild src/index.ts --bundle --outfile=dist/index.cjs --format=cjs --minify",
-    "build:js": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=iife --minify",
-    "build": "npm run format && npm run build:esm && npm run build:cjs && npm run build:js"
+    "typecheck": "tsc --noEmit",
+    "build": "npm run format && npm run typecheck && tsup",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@types/node": "^22.9.0",
-    "esbuild": "^0.25.4",
     "prettier": "^3.3.3",
-    "typescript": "^5.3.2"
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
   }
 }

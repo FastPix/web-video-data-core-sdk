@@ -1,3 +1,4 @@
+import "./types/global";
 import {
   getDomainName,
   getHostName,
@@ -220,9 +221,8 @@ const fastpixMetrix = {
             ) {
               return;
             }
-            browserObj.player_error_code = (
-              videoContainer as HTMLVideoElement
-            ).error?.code;
+            browserObj.player_error_code = (videoContainer as HTMLVideoElement)
+              .error?.code;
             browserObj.player_error_message =
               browserErrors[(videoContainer as any).error?.code] ??
               (videoContainer as HTMLVideoElement).error?.message;
@@ -327,8 +327,10 @@ const fastpixMetrix = {
   },
 };
 
+export type { EventMetaData } from "./DataType/index";
+
 export default fastpixMetrix;
 
-if (window !== undefined) {
+if (typeof window !== "undefined") {
   (window as any).fastpixMetrix = fastpixMetrix;
 }

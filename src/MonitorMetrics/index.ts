@@ -20,7 +20,7 @@ import { VideoSeekTracker } from "./VideoSeekTracker";
 import { PlaybackStartupMonitor } from "./PlaybackStartupMonitor";
 import { WallClockTimeTracker } from "./WallClockTimeTracker";
 
-const mapEvents = [
+const mapEvents = new Set([
   "viewBegin",
   "ended",
   "loadstart",
@@ -36,7 +36,7 @@ const mapEvents = [
   "requestCompleted",
   "requestFailed",
   "requestCanceled",
-];
+]);
 
 function initializeResolutionState(instance: {
   resolutionState: {
@@ -161,7 +161,7 @@ function nucleusState(
       }
     }
 
-    if (mapEvents.includes(name)) {
+    if (mapEvents.has(name)) {
       this.appendVideoState();
     }
 
