@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FastPix Data — HTML5 demos</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; }
+      li { margin: 0.5rem 0; }
+    </style>
+  </head>
+  <body>
+    <h1>FastPix Video Data — HTML5 demos</h1>
+    <p>No bundler. Run <code>npm run build</code> in the repo root once (to produce
+      <code>dist/index.js</code>), then serve the <em>repo root</em> (these pages load
+      <code>../../dist/index.js</code>), e.g.:</p>
+    <pre>npx serve .   # from repo root, then open /examples/html5-demo/</pre>
+    <ul>
+      <li><a href="native-hls.html">native-hls.html</a> — plain &lt;video&gt;, no library (Safari/iOS)</li>
+      <li><a href="hls.html">hls.html</a> — hls.js (cross-browser)</li>
+      <li><a href="dash.html">dash.html</a> — dash.js (DASH has no native path)</li>
+    </ul>
+  </body>
+</html>
