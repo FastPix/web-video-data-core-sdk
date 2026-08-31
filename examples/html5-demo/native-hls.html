@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FastPix Data — Native HLS (no MSE library)</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+      video { width: 100%; background: #000; border-radius: 8px; }
+      code { background: #f2f2f2; padding: 0 4px; border-radius: 3px; }
+    </style>
+  </head>
+  <body>
+    <h1>Native HLS — plain &lt;video&gt;, no player library</h1>
+    <p>
+      Playback here uses the browser's built-in HLS support (Safari / iOS).
+      No hls.js, no MSE — just <code>&lt;video src="...m3u8"&gt;</code>.
+      FastPix analytics still attaches. Open the console (debug is on) to watch beacons.
+    </p>
+
+    <!-- Native HLS only plays on Safari/iOS. On Chrome/Firefox this <video> won't
+         play the manifest (no native HLS); see hls.html for the cross-browser path. -->
+    <video
+      id="video-player"
+      controls
+      playsinline
+      src="https://stream.fastpix.com/7c8d5087-edf7-462f-a1b3-e2fbd30747fa.m3u8"
+    ></video>
+
+    <!-- Local IIFE build exposes window.fastpixMetrix. Run `npm run build` at the
+         repo root first, or swap for the CDN: https://cdn.jsdelivr.net/npm/@fastpix/video-data-core -->
+    <script src="../../dist/index.js"></script>
+    <script>
+      const video = document.getElementById("video-player");
+
+      // No hlsjs / dashPlayer passed => SDK reports playerType "unknown":
+      //   player_software_name      -> "" (empty)
+      //   player_fastpix_sdk_name   -> "fastpix-data-monitoring"
+      // player_name is YOUR label and is the one to set explicitly for native <video>.
+      window.fastpixMetrix.tracker(video, {
+        debug: true,
+        data: {
+          workspace_id: "YOUR_WORKSPACE_KEY",
+          player_name: "HTML5 Native Player", // set this yourself — SDK can't infer it
+          player_init_time: window.fastpixMetrix.utilityMethods.now(),
+          video_title: "FastPix Sample (native HLS)",
+          video_id: "sample-native-hls",
+        },
+      });
+
+      // Stop monitoring: video.fp.destroy();
+    </script>
+  </body>
+</html>

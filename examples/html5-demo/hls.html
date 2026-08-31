@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FastPix Data — HLS.js</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+      video { width: 100%; background: #000; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>HLS.js + FastPix Data</h1>
+    <p>Cross-browser HLS via hls.js. Pass both the instance (<code>hlsjs</code>) and the constructor (<code>Hls</code>).</p>
+
+    <video id="video-player" controls playsinline></video>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+    <script src="../../dist/index.js"></script>
+    <script>
+      const video = document.getElementById("video-player");
+      const src = "https://stream.fastpix.com/7c8d5087-edf7-462f-a1b3-e2fbd30747fa.m3u8";
+
+      if (window.Hls && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(video);
+
+        window.fastpixMetrix.tracker(video, {
+          debug: true,
+          hlsjs: hls, // instance
+          Hls: Hls, // constructor -> player_software_name becomes "hls.js Player"
+          data: {
+            workspace_id: "YOUR_WORKSPACE_KEY",
+            player_name: "HTML5 HLS.js Player",
+            player_init_time: window.fastpixMetrix.utilityMethods.now(),
+            video_title: "FastPix Sample (hls.js)",
+            video_id: "sample-hlsjs",
+          },
+        });
+      } else {
+        // Safari falls back to native HLS — see native-hls.html
+        video.src = src;
+      }
+    </script>
+  </body>
+</html>
