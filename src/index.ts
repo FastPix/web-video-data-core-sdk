@@ -5,6 +5,7 @@ import {
   analyzeVideo,
   identifyElement,
   checkDoNotTrack,
+  identifyStreamingProtocol,
   utilityMethods,
 } from "./CommonMethods/index";
 import { EventMetaData } from "./DataType/index";
@@ -34,6 +35,95 @@ const browserErrors: any = {
 
 const determinePreloadType = function (data: string) {
   return ["auto", "metadata"].includes(data);
+};
+
+// Returns the currently displayed text track, if captions are switched on
+const identifyActiveTextTrack = function (
+  media: HTMLVideoElement,
+): TextTrack | undefined {
+  const textTracks = media.textTracks;
+
+  for (let index = 0; index < (textTracks?.length ?? 0); index++) {
+    if (textTracks[index].mode === "showing") {
+      return textTracks[index];
+    }
+  }
+};
+
+// Maps the playhead to wall-clock time for live and DVR streams. hls.js exposes
+// it once the manifest carries EXT-X-PROGRAM-DATE-TIME; dash.js reports seconds.
+const measureProgramDateTime = function (
+  hlstag: any,
+  dashTag: any,
+): number | undefined {
+  const hlsPlayingDate = hlstag?.playingDate;
+
+  if (hlsPlayingDate instanceof Date) {
+    return hlsPlayingDate.getTime();
+  }
+
+  if (typeof dashTag?.timeAsUTC === "function") {
+    const dashSeconds = dashTag.timeAsUTC();
+
+    if (typeof dashSeconds === "number" && dashSeconds > 0) {
+      return Math.floor(1e3 * dashSeconds);
+    }
+  }
+};
+
+// Returns forward buffer in ms, measured from the range holding the playhead
+const measureBufferLength = function (
+  media: HTMLVideoElement,
+): number | undefined {
+  const buffered = media.buffered;
+  const playhead = media.currentTime;
+
+  for (let index = 0; index < (buffered?.length ?? 0); index++) {
+    if (playhead >= buffered.start(index) && playhead <= buffered.end(index)) {
+      return Math.floor(1e3 * (buffered.end(index) - playhead));
+    }
+  }
+};
+
+// Watches how much of the player sits inside the viewport. Geometric overlap on
+// its own would call a backgrounded tab viewable, so the page visibility state
+// is folded in as well.
+const observeViewability = function (media: HTMLVideoElement) {
+  const inert = {
+    readState: () => ({
+      player_viewable_on: undefined as boolean | undefined,
+      player_viewable_percentage: undefined as number | undefined,
+    }),
+    disconnect: () => {},
+  };
+
+  if (typeof IntersectionObserver === "undefined" || !media) {
+    return inert;
+  }
+
+  let intersecting = false;
+  let ratio = 0;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const latest = entries[entries.length - 1];
+      intersecting = latest.isIntersecting;
+      ratio = latest.intersectionRatio;
+    },
+    { threshold: [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1] },
+  );
+
+  observer.observe(media);
+
+  const isHidden = () => document?.visibilityState === "hidden";
+
+  return {
+    readState: () => ({
+      player_viewable_on: intersecting && !isHidden(),
+      player_viewable_percentage: isHidden() ? 0 : Math.round(100 * ratio),
+    }),
+    disconnect: () => observer.disconnect(),
+  };
 };
 
 const fastpixMetrix = {
@@ -72,6 +162,7 @@ const fastpixMetrix = {
     const videoId: string | undefined = videoParams[1];
     const errorTracking = {
       automaticErrorTracking: userData.automaticErrorTracking ?? true,
+      debug: userData.debug ?? false,
     };
 
     const playerConfigMap = {
@@ -104,6 +195,42 @@ const fastpixMetrix = {
       ...userData.data,
     };
 
+    const viewability = observeViewability(videoContainer as HTMLVideoElement);
+
+    // Picture in picture is usually entered and left between two beacons, so
+    // sampling document.pictureInPictureElement when a beacon is built misses
+    // it almost every time. Latching on the element's own events instead makes
+    // the field mean "picture in picture was used during this view", which is
+    // what a session level metric needs.
+    let usedPip = false;
+    const pipMedia = videoContainer as HTMLVideoElement;
+
+    pipMedia.addEventListener("enterpictureinpicture", () => {
+      usedPip = true;
+    });
+
+    // Safari has never shipped the standard API for video elements - it
+    // signals picture in picture through presentation mode, so the standard
+    // event never fires there and this is the only way to observe it.
+    pipMedia.addEventListener("webkitpresentationmodechanged", () => {
+      if ((pipMedia as any).webkitPresentationMode === "picture-in-picture") {
+        usedPip = true;
+      }
+    });
+
+    // A new source is a new view, and this closure cannot reach configureView
+    // to reset alongside the other per view state
+    pipMedia.addEventListener("loadstart", () => {
+      usedPip = false;
+    });
+
+    // Read once, at setup. Chrome's native speed control writes
+    // defaultPlaybackRate alongside playbackRate, so re-reading it on every
+    // beacon would report the viewer's choice as the application's default and
+    // the two fields could never disagree.
+    const configuredPlaybackRate = (videoContainer as HTMLVideoElement)
+      .defaultPlaybackRate;
+
     userData.fetchPlayheadTime = function () {
       return Math.floor(1e3 * (videoContainer as HTMLVideoElement).currentTime);
     };
@@ -116,6 +243,16 @@ const fastpixMetrix = {
         dashTag &&
         "function" === typeof dashTag.getSource &&
         dashTag.getSource();
+      const activeTextTrack = identifyActiveTextTrack(
+        videoContainer as HTMLVideoElement,
+      );
+
+      const viewableState = viewability.readState();
+      const activeAudioLanguage =
+        hlstag?.audioTracks?.[hlstag.audioTrack]?.lang ??
+        (dashTag && "function" === typeof dashTag.getCurrentTrackFor
+          ? dashTag.getCurrentTrackFor("audio")?.lang
+          : void 0);
 
       const statsData = {
         player_is_paused: (videoContainer as HTMLVideoElement).paused,
@@ -139,10 +276,26 @@ const fastpixMetrix = {
               ? void 0
               : (document as any).msFullscreenElement)
           ),
+        player_is_pip:
+          usedPip || document?.pictureInPictureElement === videoContainer,
+        player_muted: (videoContainer as HTMLVideoElement).muted,
+        player_default_muted_on: (videoContainer as HTMLVideoElement)
+          .defaultMuted,
+        player_volume_level: (videoContainer as HTMLVideoElement).volume,
+        player_playback_rate: (videoContainer as HTMLVideoElement).playbackRate,
+        player_default_playback_rate: configuredPlaybackRate,
+        player_loop_on: (videoContainer as HTMLVideoElement).loop,
+        player_controls_on: (videoContainer as HTMLVideoElement).controls,
+        player_subtitles_on: !!activeTextTrack,
+        player_subtitles_language_code: activeTextTrack?.language,
+        player_audio_language_code: activeAudioLanguage,
         video_source_height: (videoContainer as HTMLVideoElement).videoHeight,
         video_source_width: (videoContainer as HTMLVideoElement).videoWidth,
         video_source_url:
           hlsurl ?? dashUrl ?? (videoContainer as HTMLVideoElement).currentSrc,
+        video_source_stream_protocol: identifyStreamingProtocol(
+          hlsurl ?? dashUrl ?? (videoContainer as HTMLVideoElement).currentSrc,
+        ),
         video_source_domain: getDomainName(
           hlsurl ?? dashUrl ?? (videoContainer as HTMLVideoElement).currentSrc,
         ),
@@ -152,8 +305,14 @@ const fastpixMetrix = {
         video_source_duration: Math.floor(
           1e3 * (videoContainer as HTMLVideoElement).duration,
         ),
+        video_source_buffer_length: measureBufferLength(
+          videoContainer as HTMLVideoElement,
+        ),
+        player_program_date_time: measureProgramDateTime(hlstag, dashTag),
         video_poster_url: (videoContainer as HTMLVideoElement).poster,
         player_language_code: videoContainer.lang,
+        player_viewable_on: viewableState.player_viewable_on,
+        player_viewable_percentage: viewableState.player_viewable_percentage,
         view_dropped_frame_count:
           null === (obj = videoContainer as HTMLVideoElement) ||
           void 0 === obj ||
@@ -183,6 +342,7 @@ const fastpixMetrix = {
         },
       );
       delete (videoContainer as any).fp.listeners;
+      viewability.disconnect();
 
       if (playerType === "hls" && videoContainer.fp?.destroyHlsMonitoring) {
         (videoContainer as any).fp?.destroyHlsMonitoring();
@@ -221,11 +381,15 @@ const fastpixMetrix = {
             ) {
               return;
             }
-            browserObj.player_error_code = (videoContainer as HTMLVideoElement)
-              .error?.code;
+            browserObj.player_error_code = (
+              videoContainer as HTMLVideoElement
+            ).error?.code;
             browserObj.player_error_message =
               browserErrors[(videoContainer as any).error?.code] ??
               (videoContainer as HTMLVideoElement).error?.message;
+            // MEDIA_ERR_ABORTED is filtered out above, so whatever reaches this
+            // point ended playback
+            browserObj.player_error_severity = "fatal";
           }
           this.dispatch(videoId, event, browserObj);
         };
@@ -258,6 +422,7 @@ const fastpixMetrix = {
         player_error_code?: string;
         player_error_message?: any;
         player_error_context?: string;
+        player_error_severity?: string;
         request_error?: any;
         request_error_code?: number;
         request_error_text?: string;

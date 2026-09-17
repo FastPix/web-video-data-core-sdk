@@ -2,15 +2,21 @@
 interface BufferData {
   view_rebuffer_count?: number;
   view_rebuffer_duration?: number;
+  view_ad_rebuffer_count?: number;
+  view_ad_rebuffer_duration?: number;
   view_watch_time?: number;
   view_rebuffer_frequency?: number | null;
   view_rebuffer_percentage?: number;
+  // Timestamp of the most recent rebuffer. Sent rather than an elapsed value so
+  // 'time since' can be measured against any beacon's viewer_timestamp
+  view_last_rebuffer_start_time?: number;
   player_playhead_time: number;
 }
 
 interface Params {
   disablePlayheadRebufferTracking: boolean;
   allowRebufferTracking?: boolean;
+  adBreakActive?: boolean;
   data: BufferData;
   userConfigData?: {
     actionableData?: {
@@ -39,6 +45,10 @@ interface ViewerData {
 class BufferProcessor {
   [x: string]: any;
   startTimer: number | undefined;
+  // Parallel to startTimer, but only running when adBreakActive was true at
+  // the buffering event. Kept separate so a stall that straddles an ad-to-
+  // content transition can't credit its tail to the wrong bucket.
+  startTimerAd: number | undefined;
   params: Params;
   emitter: Emitter;
 
@@ -65,7 +75,22 @@ class BufferProcessor {
   }
 
   handleBufferingStart(data: ViewerData) {
+    // An ad stalling is not the content stalling. hls.js plays interstitials
+    // through the same media element, so a buffering event raised during a
+    // break describes the ad. It is credited to the ad rebuffer bucket
+    // instead, so ad delivery quality shows up on its own field and content
+    // rebuffer frequency and percentage stay clean.
+    if (this.params.adBreakActive) {
+      if (!this.startTimerAd) {
+        this.params.data.view_ad_rebuffer_count =
+          (this.params.data.view_ad_rebuffer_count ?? 0) + 1;
+        this.startTimerAd = data.viewer_timestamp;
+      }
+      return;
+    }
+
     if (!this.startTimer) {
+      this.params.data.view_last_rebuffer_start_time = data.viewer_timestamp;
       this.params.data.view_rebuffer_count =
         (this.params.data.view_rebuffer_count ?? 0) + 1;
       this.startTimer = data.viewer_timestamp;
@@ -73,6 +98,13 @@ class BufferProcessor {
   }
 
   handleBufferingEnd(data: ViewerData) {
+    if (this.startTimerAd) {
+      this.params.data.view_ad_rebuffer_duration =
+        (this.params.data.view_ad_rebuffer_duration ?? 0) +
+        (data.viewer_timestamp - this.startTimerAd);
+      this.startTimerAd = undefined;
+      return;
+    }
     this.processBufferMetrics(data);
     this.startTimer = undefined;
   }
@@ -123,6 +155,7 @@ class BufferProcessor {
 
   resetTimer() {
     this.startTimer = undefined;
+    this.startTimerAd = undefined;
   }
 }
 
