@@ -161,6 +161,52 @@ fastpixMetrix.tracker(videoPlayerElement, {
 
 Keep metadata consistent across different video loads to make comparison easier in the dashboard.
 
+## Additional metadata
+
+Alongside the named attributes above, the SDK accepts the following. All are optional and passed through exactly as given. Any you omit are simply absent from the report, which is never an error.
+
+**Your application**
+
+```javascript
+application_name: "FastPix Web Player",   // Which client app the view came from
+application_version: "2.3.1",             // Its version - useful for spotting a bad release
+content_id: "cid_98765",                  // Your own content identifier
+device_id: "dev_abc123",                  // Your own device identifier
+page_type: "video_detail_page",           // Where the player is embedded
+```
+
+**The viewer**
+
+```javascript
+viewer_plan: "Premium",                   // Subscription plan
+viewer_plan_category: "paid",             // free, paid, trial
+viewer_plan_status: "active",             // active, expired, cancelled
+```
+
+**The title**
+
+```javascript
+video_brand: "FastPix Originals",         // Brand it is published under
+video_affiliate: "Airtel",                // Distribution partner
+video_creator_id: "creator_123",          // Uploader or studio
+video_description: "Match highlights",
+video_media_tags: "sports,cricket,hd",
+video_codec: "h264",                      // What your catalogue says the title is
+video_audio_codec: "aac",                 // encoded with. The SDK separately
+video_dynamic_range_type: "HDR10",        // measures what the player received
+```
+
+**Delivery and playback capabilities**
+
+```javascript
+view_drm_level: "L1",                     // Widevine L1 (hardware) or L3 (software)
+view_cdn_edge_pop: "DEL-IX-01",
+view_cdn_origin: "origin.example.com",
+view_time_shift_enabled: true,            // Live stream was paused or rewound
+player_captions_enabled: true,            // Your UI offers captions
+player_pip_enabled: true,                 // Your UI offers picture in picture
+```
+
 # Step 5: Advanced Customization with FastPix Data SDK
 
 | Attribute                | Description                                                                                                                                                                                                                                                                                                                                                  | Type    | Example Usage                   |

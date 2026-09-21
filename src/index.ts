@@ -6,6 +6,7 @@ import {
   identifyElement,
   checkDoNotTrack,
   identifyStreamingProtocol,
+  buildRenditionName,
   utilityMethods,
 } from "./CommonMethods/index";
 import { EventMetaData } from "./DataType/index";
@@ -448,7 +449,17 @@ const fastpixMetrix = {
       );
     }
   },
-  utilityMethods: utilityMethods,
+  // An adapter that drives its own player - Shaka, video.js - never enters
+  // tracker(), so it cannot reach the readers below the way hls.js and dash.js
+  // do. Exposing them here lets such an adapter assemble its own state object
+  // from the same parts, rather than reimplementing rules that would drift.
+  utilityMethods: {
+    ...utilityMethods,
+    measureBufferLength,
+    observeViewability,
+    identifyStreamingProtocol,
+    buildRenditionName,
+  },
   configure: function (name: string | undefined, props: any) {
     if (checkDoNotTrack()) {
       if (props?.respectDoNotTrack && props?.debug) {

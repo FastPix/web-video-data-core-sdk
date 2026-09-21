@@ -534,7 +534,7 @@ function nucleusState(
   // reaching the screen, which is the only honest signal that a frame rendered
   // - hls.js announces the asset long before that, and an ad left paused on its
   // first frame never gets here at all.
-  eventEmitter.on("playing", () => {
+  const recordAdImpression = () => {
     if (!this.adBreakActive || !this.adPendingImpression) {
       return;
     }
@@ -561,7 +561,16 @@ function nucleusState(
     this.adBreakHadImpression = true;
     metricUpdation(this.data, "view_ad_impression_count", 1);
     eventEmitter.emit("adplaying", {});
-  });
+  };
+
+  eventEmitter.on("playing", recordAdImpression);
+
+  // Players whose ads render outside the content element - Shaka's client-side
+  // IMA overlays a second video - never raise playing for the ad, so playback
+  // of the ad has to be announced explicitly instead. Sharing the handler keeps
+  // one definition of what an impression is, and the guard above means an
+  // integration that signals both ways still counts exactly one.
+  eventEmitter.on("adimpression", recordAdImpression);
 
   // Announced by the manifest before playback reaches it, so this is set even
   // for a preroll that never fills. It is the denominator that makes
