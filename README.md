@@ -168,43 +168,43 @@ Alongside the named attributes above, the SDK accepts the following. All are opt
 **Your application**
 
 ```javascript
-application_name: "FastPix Web Player",   // Which client app the view came from
-application_version: "2.3.1",             // Its version - useful for spotting a bad release
-content_id: "cid_98765",                  // Your own content identifier
-device_id: "dev_abc123",                  // Your own device identifier
-page_type: "video_detail_page",           // Where the player is embedded
+application_name: "APPLICATION_NAME", // Which client app the view came from
+application_version: "APPLICATION_VERSION", // Its version - useful for spotting a bad release
+content_id: "CONTENT_ID", // Your own content identifier
+device_id: "DEVICE_ID", // Your own device identifier
+page_type: "PAGE_TYPE", // Where the player is embedded
 ```
 
 **The viewer**
 
 ```javascript
-viewer_plan: "Premium",                   // Subscription plan
-viewer_plan_category: "paid",             // free, paid, trial
-viewer_plan_status: "active",             // active, expired, cancelled
+viewer_plan: "VIEWER_PLAN", // Subscription plan
+viewer_plan_category: "VIEWER_PLAN_CATEGORY", // free, paid, trial
+viewer_plan_status: "VIEWER_PLAN_STATUS", // active, expired, cancelled
 ```
 
 **The title**
 
 ```javascript
-video_brand: "FastPix Originals",         // Brand it is published under
-video_affiliate: "Airtel",                // Distribution partner
-video_creator_id: "creator_123",          // Uploader or studio
-video_description: "Match highlights",
-video_media_tags: "sports,cricket,hd",
-video_codec: "h264",                      // What your catalogue says the title is
-video_audio_codec: "aac",                 // encoded with. The SDK separately
-video_dynamic_range_type: "HDR10",        // measures what the player received
+video_brand: "VIDEO_BRAND", // Brand it is published under
+video_affiliate: "VIDEO_AFFILIATE", // Distribution partner
+video_creator_id: "VIDEO_CREATOR_ID", // Uploader or studio
+video_description: "VIDEO_DESCRIPTION", // Short summary of the title
+video_media_tags: "VIDEO_MEDIA_TAGS", // Comma separated tags from your catalogue
+video_codec: "VIDEO_CODEC", // What your catalogue says the title is encoded with
+video_audio_codec: "VIDEO_AUDIO_CODEC", // The SDK separately measures what the
+video_dynamic_range_type: "VIDEO_DYNAMIC_RANGE_TYPE", // player actually received
 ```
 
 **Delivery and playback capabilities**
 
 ```javascript
-view_drm_level: "L1",                     // Widevine L1 (hardware) or L3 (software)
-view_cdn_edge_pop: "DEL-IX-01",
-view_cdn_origin: "origin.example.com",
-view_time_shift_enabled: true,            // Live stream was paused or rewound
-player_captions_enabled: true,            // Your UI offers captions
-player_pip_enabled: true,                 // Your UI offers picture in picture
+view_drm_level: "VIEW_DRM_LEVEL", // Widevine L1 (hardware) or L3 (software)
+view_cdn_edge_pop: "VIEW_CDN_EDGE_POP", // Edge location that served the view
+view_cdn_origin: "VIEW_CDN_ORIGIN", // Origin the CDN pulled from
+view_time_shift_enabled: true, // Live stream was paused or rewound
+player_captions_enabled: true, // Your UI offers captions
+player_pip_enabled: true, // Your UI offers picture in picture
 ```
 
 # Step 5: Advanced Customization with FastPix Data SDK
