@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0]
+
+### Added
+- **Rendition tracking** - `view_rendition_upshift_count`, `view_rendition_downshift_count`, `view_last_rendition_changed_time`,`video_source_rendition_name` and initial-bitrate capture on both HLS and DASH.
+- **Viewer environment fields** - browser viewport dimensions, cookies-enabled, and Do Not Track.
+- **Player state fields** - mute, volume, loop, playback rate, viewable percentage, and picture-in-picture usage.
+- **New pass-through metadata** - `application_name`, `application_version`, `page_type`, the three `viewer_plan*` fields, eight `video_*` title fields, DRM level, CDN edge/origin, time-shift and captions/PiP capability flags.
+- **Ad tracking for HLS Interstitials** (`EXT-X-DATERANGE CLASS="com.apple.hls.interstitial"`) - break identity and position, per-asset identity and index, attempt/impression/error counters, preroll request and load timing, and ad rebuffering.
+- **Ad tracking for DASH multi-Period SSAI** - ad breaks are detected from the `AssetIdentifier` descriptor, accepting both the MPEG (`urn:mpeg:dash:asset-id:2013`) and DASH-IF (`urn:org:dashif:asset-id:2013`) scheme identifiers, since encoders emit both. The content asset is identified as the asset id owning the greatest total duration across periods, so a leading preroll period is never mistaken for content.
+
 ## [1.0.9]
 ### Fixed
 - SSR crash: importing the SDK in Node/server environments (e.g. Next.js server rendering) threw `ReferenceError: window is not defined` due to an unsafe `window !== undefined` guard; now uses `typeof window !== "undefined"`.
