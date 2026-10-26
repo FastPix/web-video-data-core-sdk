@@ -6,6 +6,7 @@ interface SeekData {
 
 interface Dragger {
   data: Record<string, any>;
+  adBreakActive?: boolean;
   filterData: (event: string) => void;
 }
 
@@ -40,6 +41,13 @@ export class VideoSeekTracker {
   }
 
   handleSeeking(seekdata: SeekData): void {
+    // When a break ends hls.js seeks the element back to the resume point.
+    // That is the player repositioning itself, not the viewer scrubbing, so it
+    // must not land in view_seek_count or fire a seeking beacon.
+    if (this.dragger.adBreakActive) {
+      return;
+    }
+
     Object.assign(this.dragger.data, seekdata);
 
     if (
@@ -72,6 +80,14 @@ export class VideoSeekTracker {
   }
 
   seeker(): void {
+    // seekerElapsedTime is -1 until handleSeeking starts a seek. A seeked with
+    // no matching seeking - which every ad break resume produces, since
+    // handleSeeking ignores those - would otherwise subtract -1 from a clock
+    // reading and add a whole epoch timestamp to the duration.
+    if (this.seekerElapsedTime < 0) {
+      return;
+    }
+
     const seekerTime: number = timestamp.now();
     const last: number =
       (this.dragger.data.viewer_timestamp ?? seekerTime) -

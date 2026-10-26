@@ -210,14 +210,23 @@ function getRequestTimingDetails(event: any) {
   };
 }
 
-const checkNetworkBandwidth = (): string | undefined => {
+const fetchNetworkInformation = (): any => {
   const connectionType = navigator as any;
-  const connection =
+
+  return (
     connectionType?.connection ??
     connectionType?.mozConnection ??
-    connectionType?.webkitConnection;
+    connectionType?.webkitConnection
+  );
+};
 
-  return connection?.type;
+const checkNetworkBandwidth = (): string | undefined => {
+  return fetchNetworkInformation()?.type;
+};
+
+// Chrome omits connection.type, so effectiveType is reported separately
+const getNetworkSpeed = (): string | undefined => {
+  return fetchNetworkInformation()?.effectiveType;
 };
 
 const getNetworkConnection = (): string | undefined => {
@@ -232,6 +241,160 @@ const getNetworkConnection = (): string | undefined => {
       break;
     default:
       return "other";
+  }
+};
+
+// Returns the IANA timezone of the viewer
+const getTimezoneName = (): string | undefined => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {}
+};
+
+// Narrows the screen orientation down to portrait or landscape
+const getScreenOrientation = (): string | undefined => {
+  const orientationType = (window as any)?.screen?.orientation?.type;
+
+  if (typeof orientationType !== "string") {
+    return;
+  }
+
+  return orientationType.startsWith("portrait") ? "portrait" : "landscape";
+};
+
+// CTA-5004 keys mapped onto beacon fields. Kept separate from the natively
+// derived equivalents so the source of a value is never ambiguous - these are
+// only ever populated when the player was configured to emit CMCD.
+const cmcdKeyMappings: { [key: string]: string } = {
+  bl: "request_cmcd_buffer_length",
+  br: "request_cmcd_bitrate",
+  bs: "request_cmcd_buffer_starvation",
+  cid: "request_cmcd_content_id",
+  d: "request_cmcd_object_duration",
+  dl: "request_cmcd_deadline",
+  mtp: "request_cmcd_throughput",
+  nor: "request_cmcd_next_object",
+  nrr: "request_cmcd_next_range",
+  ot: "request_cmcd_object_type",
+  pr: "request_cmcd_playback_rate",
+  rtp: "request_cmcd_requested_throughput",
+  sf: "request_cmcd_stream_format",
+  sid: "request_cmcd_session_id",
+  st: "request_cmcd_stream_type",
+  su: "request_cmcd_startup",
+  tb: "request_cmcd_max_bitrate",
+  v: "request_cmcd_version",
+};
+
+// Reads the CMCD payload a player appends to its media requests. Only the query
+// argument form is reachable - the header form is sent on the request itself,
+// which a script on the page cannot read back.
+const parseCmcdPayload = (
+  url: string | undefined,
+): { [key: string]: any } | undefined => {
+  if (!url?.includes("CMCD=")) {
+    return;
+  }
+
+  let payload: string | null = null;
+
+  try {
+    payload = new URL(url, window?.location?.href).searchParams.get("CMCD");
+  } catch {
+    return;
+  }
+
+  if (!payload) {
+    return;
+  }
+
+  const parsed: { [key: string]: any } = {};
+
+  // Split on commas outside quoted values, since a quoted value may contain one
+  (payload.match(/(?:[^,"]|"[^"]*")+/g) ?? []).forEach((pair) => {
+    const separator = pair.indexOf("=");
+    const rawKey = (separator === -1 ? pair : pair.slice(0, separator)).trim();
+    const field = cmcdKeyMappings[rawKey];
+
+    if (!field) {
+      return;
+    }
+
+    // A key with no value is a boolean that is present, per the spec
+    if (separator === -1) {
+      parsed[field] = true;
+      return;
+    }
+
+    const rawValue = pair.slice(separator + 1).trim();
+
+    if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
+      parsed[field] = rawValue.slice(1, -1);
+    } else if (/^-?\d+(\.\d+)?$/.test(rawValue)) {
+      parsed[field] = Number(rawValue);
+    } else {
+      parsed[field] = rawValue;
+    }
+  });
+
+  return Object.keys(parsed).length ? parsed : undefined;
+};
+
+// Builds a readable label for the rendition being played. Manifests rarely
+// carry a NAME attribute, so the label is derived rather than read, which also
+// keeps it consistent across packagers that spell their own labels differently.
+//
+// The short side is used because that is what a resolution is named after - a
+// portrait clip at 1080x1920 is still 1080p, not 1920p.
+const buildRenditionName = (
+  width: number | undefined,
+  height: number | undefined,
+  dynamicRange?: string,
+): string | undefined => {
+  const shortSide = Math.min(width || 0, height || 0) || height;
+
+  if (!shortSide) {
+    return;
+  }
+
+  const tiers: [number, string][] = [
+    [2160, "4K"],
+    [1440, "QHD"],
+    [1080, "FHD"],
+    [720, "HD"],
+  ];
+  const tier = tiers.find(([threshold]) => shortSide >= threshold);
+  const range = dynamicRange && dynamicRange !== "SDR" ? dynamicRange : "";
+
+  return [shortSide + "p", tier?.[1], range].filter(Boolean).join(" ");
+};
+
+// Names the delivery protocol from the source URL. The path is inspected
+// rather than the whole URL so a signature or token in the query string cannot
+// be mistaken for a manifest extension.
+const identifyStreamingProtocol = (
+  url: string | undefined,
+): string | undefined => {
+  if (!url) {
+    return;
+  }
+
+  let path = url;
+
+  try {
+    path = new URL(url, window?.location?.href).pathname;
+  } catch {}
+
+  if (path.includes(".m3u8")) {
+    return "HLS";
+  }
+
+  if (path.includes(".mpd")) {
+    return "DASH";
+  }
+
+  if (/\.(mp4|webm|ogv|mov|m4v)$/i.test(path)) {
+    return "PROGRESSIVE";
   }
 };
 
@@ -304,10 +467,16 @@ export {
   mergeObjects,
   checkDoNotTrack,
   getNetworkConnection,
+  getNetworkSpeed,
+  getTimezoneName,
+  getScreenOrientation,
   ListenerManager,
   timestamp,
   customTimerModule,
   utilityMethods,
   getRequestTimingDetails,
   fetchHeaders,
+  identifyStreamingProtocol,
+  buildRenditionName,
+  parseCmcdPayload,
 };

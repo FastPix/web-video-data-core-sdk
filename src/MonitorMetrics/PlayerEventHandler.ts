@@ -3,6 +3,9 @@ import {
   formulateBeaconUrl,
   mergeObjects,
   getNetworkConnection,
+  getNetworkSpeed,
+  getTimezoneName,
+  getScreenOrientation,
 } from "../CommonMethods/index";
 import {
   getViewerCookie,
@@ -16,7 +19,17 @@ import { formatEventData } from "../SplitDataParameters/index";
 
 interface SDKPageDetails {
   viewer_connection_type: string | undefined;
+  viewer_connection_speed: string | undefined;
+  viewer_cookies_enabled: boolean | undefined;
+  viewer_device_orientation: string | undefined;
+  viewer_dnt_on: boolean;
+  viewer_timezone_name: string | undefined;
+  viewer_browser_width: number | undefined;
+  viewer_browser_height: number | undefined;
   page_url: string;
+  page_title: string;
+  page_referrer_url: string;
+  page_site_domain: string;
 }
 
 interface CookieDataTypes {
@@ -46,12 +59,27 @@ const videoStateKeys = new Set([
   "player_autoplay_on",
   "player_preload_on",
   "player_is_fullscreen",
+  "player_is_pip",
+  "player_muted",
+  "player_default_muted_on",
+  "player_viewable_on",
+  "player_viewable_percentage",
+  "player_volume_level",
+  "player_playback_rate",
+  "player_default_playback_rate",
+  "player_loop_on",
+  "player_controls_on",
+  "player_subtitles_on",
+  "player_subtitles_language_code",
   "video_source_height",
   "video_source_width",
+  "video_source_stream_protocol",
   "video_source_url",
   "video_source_domain",
   "video_source_hostname",
   "video_source_duration",
+  "video_source_buffer_length",
+  "player_program_date_time",
   "video_poster_url",
   "player_language_code",
   "view_dropped_frame_count",
@@ -71,8 +99,15 @@ export class PlaybackEventHandler {
   sdkPageDetails: SDKPageDetails;
   userData: CookieDataTypes | Object;
   debug: boolean;
+  nucleus: any;
 
-  constructor(self = {}, tokenId = "", data: ActionableDataTypes = {}) {
+  constructor(
+    self = {},
+    tokenId = "",
+    data: ActionableDataTypes = {},
+    nucleus: any = undefined,
+  ) {
+    this.nucleus = nucleus;
     this.fp = self;
     this.tokenId = tokenId;
     this.actionableData = data ?? {};
@@ -85,12 +120,22 @@ export class PlaybackEventHandler {
       this.actionableData,
     );
     this.previousBeaconData = null;
+    const canAccessDocument = document !== undefined;
     this.sdkPageDetails = {
       viewer_connection_type: getNetworkConnection(),
+      viewer_connection_speed: getNetworkSpeed(),
+      viewer_cookies_enabled: navigator?.cookieEnabled,
+      viewer_device_orientation: getScreenOrientation(),
+      viewer_dnt_on: checkDoNotTrack(),
+      viewer_timezone_name: getTimezoneName(),
+      viewer_browser_width: window?.innerWidth,
+      viewer_browser_height: window?.innerHeight,
       page_url: window === undefined ? "" : window?.location?.href,
+      page_title: canAccessDocument ? document.title : "",
+      page_referrer_url: canAccessDocument ? document.referrer : "",
+      page_site_domain: window === undefined ? "" : window?.location?.hostname,
     };
 
-    const canAccessDocument = document !== undefined;
     this.userData =
       !this.disableCookies && canAccessDocument ? getViewerCookie() : {};
   }
@@ -122,6 +167,15 @@ export class PlaybackEventHandler {
     if (event === "viewCompleted") {
       this.eventQueue.destroy(true);
     } else if (eventHandler.has(event)) {
+      // hls.js swapping the media element at an interstitial boundary makes the
+      // browser raise ended even though the content has not finished - it fires
+      // ten seconds into a three minute video. Flushing on that would send a
+      // premature end-of-playback beacon, so a break in progress keeps the
+      // event queued and batched like any other.
+      if (event === "ended" && this.nucleus?.adBreakActive) {
+        return;
+      }
+
       this.eventQueue.processEventQueue();
     }
   }
