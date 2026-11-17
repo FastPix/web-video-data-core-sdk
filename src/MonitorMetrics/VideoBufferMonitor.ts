@@ -17,6 +17,7 @@ interface Params {
   disablePlayheadRebufferTracking: boolean;
   allowRebufferTracking?: boolean;
   adBreakActive?: boolean;
+  fetchMediaTime?: () => number | undefined;
   data: BufferData;
   userConfigData?: {
     actionableData?: {
@@ -226,13 +227,27 @@ class BufferMonitor {
     );
   }
 
+  // The position stall detection watches. The element's own clock when the
+  // integration provides one, because during an HLS interstitial the content
+  // playhead stands still while the ad plays and would read as a stall for
+  // the whole ad. Falls back to the content playhead otherwise.
+  progressPosition(): number {
+    const mediaTime = this.waiter.fetchMediaTime?.();
+
+    if (typeof mediaTime === "number" && Number.isFinite(mediaTime)) {
+      return mediaTime;
+    }
+
+    return this.waiter.data.player_playhead_time;
+  }
+
   isPlayheadStuck(): boolean {
-    return this.lastPlayheadTime === this.waiter.data.player_playhead_time;
+    return this.lastPlayheadTime === this.progressPosition();
   }
 
   startBuffering(currentTime: number) {
     this.lastCheckedTime = currentTime;
-    this.lastPlayheadTime = this.waiter.data.player_playhead_time;
+    this.lastPlayheadTime = this.progressPosition();
     this.lastUpdatedTime = currentTime;
   }
 
@@ -272,7 +287,7 @@ class BufferMonitor {
 
   hasSignificantProgress(data: ViewerData | undefined): boolean {
     const playheadDifference =
-      this.waiter.data.player_playhead_time - (this.lastPlayheadTime ?? 0);
+      this.progressPosition() - (this.lastPlayheadTime ?? 0);
     const viewerTimeDifference =
       (data?.viewer_timestamp ?? 0) - (this.lastUpdatedTime ?? 0);
     return (
@@ -282,7 +297,7 @@ class BufferMonitor {
 
   recalibrateBuffering(data: ViewerData | undefined) {
     const playheadDifference =
-      this.waiter.data.player_playhead_time - (this.lastPlayheadTime ?? 0);
+      this.progressPosition() - (this.lastPlayheadTime ?? 0);
     const viewerTimeDifference =
       (data?.viewer_timestamp ?? 0) - (this.lastUpdatedTime ?? 0);
     this.waiter.dispatch("buffering", {

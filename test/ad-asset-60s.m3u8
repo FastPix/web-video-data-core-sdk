@@ -1,0 +1,24 @@
+#EXTM3U
+#EXT-X-VERSION:4
+#EXT-X-TARGETDURATION:11
+#EXT-X-PLAYLIST-TYPE:VOD
+# ad-asset-60s: first 6 segments of Apple bipbop_16x9 gear1, 59.9 s, used as a long ad
+#EXTINF:9.9766,
+#EXT-X-BYTERANGE:326744@0
+https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/gear1/main.ts
+#EXTINF:9.9766,
+#EXT-X-BYTERANGE:326368@326744
+https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/gear1/main.ts
+#EXTINF:10.01,
+#EXT-X-BYTERANGE:327120@653112
+https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/gear1/main.ts
+#EXTINF:9.9433,
+#EXT-X-BYTERANGE:326556@980232
+https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/gear1/main.ts
+#EXTINF:10.01,
+#EXT-X-BYTERANGE:326368@1306788
+https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/gear1/main.ts
+#EXTINF:9.9433,
+#EXT-X-BYTERANGE:327684@1633156
+https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_16x9/gear1/main.ts
+#EXT-X-ENDLIST

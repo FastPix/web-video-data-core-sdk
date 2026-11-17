@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.12.7/dist/shaka-player.compiled.js" integrity="sha384-HtIqM8W8H078OnSBEvUzxmni21xyDPh/MwiNFwpwPJLzwvNWrcsAfwndkEvjuh5A" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fastpix/video-data-shakaplayer@latest"></script>
+    <title>FastPix ShakaPlayer Analytics</title>
+</head>
+
+<body>
+    <div>
+        <video id="video-player" autoplay width="100%" controls></video>
+    </div>
+    <script>
+        if (window && window.loadShakaPlayer) {
+
+            // Initialize player setup 
+            const initTime = window.loadShakaPlayer.utilityMethods.now(); // Captures the player initialization time 
+            const videoElement = document.getElementById("video-player"); // HTML5 video element for Shaka Player 
+            const player = new shaka.Player(videoElement); // Shaka Player instance bound to the video element 
+
+            // Define player metadata 
+            const playerMetadata = {
+                workspace_id: "1223116046878841490", // Replace with your workspace key 
+                player_name: "PLAYER_NAME", // A unique identifier for the player instance 
+                player_init_time: initTime, // The time the player was initialized 
+                video_title: "VIDEO_TITLE", // Title of the video being played for analytics 
+                video_id: "VIDEO_ID", // Unique identifier for the video
+                viewer_id: "VIEWER_ID", // Unique identifier for the viewer 
+
+                // Additional metadata can be added here 
+            };
+
+            // Configure FastPix data integration 
+            const fastPixShakaIntegration = window.loadShakaPlayer(
+                player, {
+                    debug: false, // Set to true to enable debug logs 
+                    data: playerMetadata, // Pass metadata object 
+                    configDomain: "anlytix.app",
+                },
+                shaka // The Shaka Player instance (mandatory field) 
+            );
+
+            // Load the video content 
+            const videoUrl = "https://stream.fastpix.com/7c8d5087-edf7-462f-a1b3-e2fbd30747fa.m3u8"; // Replace with your video manifest URL 
+            player
+                .load(videoUrl) // Load the video manifest into the Shaka Player 
+                .then(() => {
+                    // Successfully loaded the manifest. FastPix data will begin tracking. 
+                })
+                .catch((error) => {
+                    fastPixShakaIntegration.handleLoadError(error);
+                });
+        }
+    </script>
+</body>
+
+</html>

@@ -271,6 +271,55 @@ export const setupHlsMonitoring = (
     });
   };
 
+  // hls.js opens a preroll break and attaches its first ad as soon as it has
+  // parsed the manifest, which is before the viewer presses play - seconds
+  // before under autoplay, any length of time under click-to-play. Sent then,
+  // adbreakstart and adplay land ahead of viewBegin, and a viewer who waits on
+  // the poster longer than the break's idle watchdog has the break closed
+  // under them, so the ad that then plays is counted as content. Until the
+  // element has played once, those two opening events are held here and sent
+  // right after the first play. Any other ad event arriving first (the ad
+  // failed, the break ended) releases them ahead of itself, so order is kept.
+  const mediaElement = videoContainer as HTMLVideoElement;
+  let viewerHasPlayed =
+    mediaElement?.paused === false || (mediaElement?.played?.length ?? 0) > 0;
+  const heldAdEvents: Array<[string, any]> = [];
+
+  const releaseHeldAdEvents = () => {
+    while (heldAdEvents.length > 0) {
+      const [name, payload] = heldAdEvents.shift() as [string, any];
+      dispatchEvent(name, payload);
+    }
+  };
+
+  // The opening events of a preroll break, in the order hls.js raises them.
+  // adrequest/adresponse are held with adbreakstart so no row precedes
+  // viewBegin; the preroll latency fields are measured separately and keep
+  // their real timestamps.
+  const HELD_UNTIL_PLAY = new Set([
+    "adbreakstart",
+    "adrequest",
+    "adresponse",
+    "adplay",
+  ]);
+
+  const dispatchAdEvent = (name: string, payload: any) => {
+    if (!viewerHasPlayed && HELD_UNTIL_PLAY.has(name)) {
+      heldAdEvents.push([name, payload]);
+      return;
+    }
+
+    releaseHeldAdEvents();
+    dispatchEvent(name, payload);
+  };
+
+  // Registered after the tracker's own play listener, so the play row and
+  // viewBegin are already out when the held events follow.
+  const handleFirstPlay = () => {
+    viewerHasPlayed = true;
+    releaseHeldAdEvents();
+  };
+
   // HLS Interstitials (hls.js 1.5+). Feature-gated on the event constants
   // existing, so older hls.js builds skip registration and legacy CUE-OUT
   // handling is unaffected.
@@ -301,7 +350,8 @@ export const setupHlsMonitoring = (
       // an ad CDN problem from a content CDN problem.
       const assetUrl = event?.assetUrl ?? event?.assetListUrl;
 
-      dispatchEvent("adbreakstart", {
+      openBreakId = breakId ?? "break";
+      dispatchAdEvent("adbreakstart", {
         view_ad_break_id: breakId,
         view_ad_break_position: position,
         view_ad_duration: duration,
@@ -330,6 +380,11 @@ export const setupHlsMonitoring = (
   // to back, so nothing is lost by carrying it across.
   let settledBreakDuration: number | undefined;
 
+  // The break hls.js has opened and not yet resumed from. PRIMARY_RESUMED also
+  // fires when hls.js skips a break whose asset list failed to load ahead of
+  // time; with nothing open there is no adbreakend to send.
+  let openBreakId: string | undefined;
+
   const handleInterstitialEnded = guard(
     "interstitialEnded",
     (_event: any, data: any) => {
@@ -339,12 +394,76 @@ export const setupHlsMonitoring = (
     },
   );
 
+  // The asset player hls.js attached for the ad in progress. The ad plays
+  // through the primary media element, whose timeupdate keeps firing, but its
+  // own position and duration live on this object; that is what the quartile
+  // check needs. Held from asset start to asset end or break end - not cleared
+  // on an asset error, because hls.js may retry and the same player carries on.
+  let activeAssetPlayer: any;
+
+  const handleAdProgressTick = () => {
+    const player = activeAssetPlayer;
+    if (!player) {
+      return;
+    }
+
+    const position = player.currentTime;
+    // The ad's own length. player.duration is already capped by the break's
+    // playout limit, which would make a cut ad look complete and move the
+    // quartiles onto the cut length; the asset item carries the real figure.
+    const duration =
+      player.assetItem?.duration > 0
+        ? player.assetItem.duration
+        : player.duration > 0
+          ? player.duration
+          : undefined;
+
+    if (!(duration > 0) || typeof position !== "number") {
+      return;
+    }
+
+    dispatchEvent("adprogress", { position, duration });
+  };
+
   const handleInterstitialsPrimaryResumed = guard("primaryResumed", () => {
-    dispatchEvent("adbreakend", {
+    activeAssetPlayer = undefined;
+
+    if (openBreakId === undefined) {
+      settledBreakDuration = undefined;
+      return;
+    }
+
+    openBreakId = undefined;
+    dispatchAdEvent("adbreakend", {
       view_ad_duration: settledBreakDuration,
     });
     settledBreakDuration = undefined;
   });
+
+  // The break's X-PLAYOUT-LIMIT will cut this ad short. hls.js ends a cut ad
+  // with the same asset-ended event as a natural end, and consumes its own
+  // PLAYOUT_LIMIT_REACHED before any later listener runs, so the cut has to
+  // be read from the schedule. Checked when the ad starts and again when it
+  // ends: a single-asset break learns the ad's length only once its playlist
+  // has loaded. Keyed by asset, so a repeat and a held adplay are harmless.
+  const signalPlayoutCut = (breakEvent: any, asset: any) => {
+    const playoutLimit = breakEvent?.playoutLimit;
+    if (typeof playoutLimit !== "number" || !Number.isFinite(playoutLimit)) {
+      return;
+    }
+    // The ad's own length. breakEvent.duration is already capped by the
+    // limit, so it cannot be the comparison.
+    const assetDuration =
+      asset?.duration > 0
+        ? asset.duration
+        : breakEvent?.dateRange?.duration > 0
+          ? breakEvent.dateRange.duration
+          : undefined;
+    const assetPlayout = playoutLimit - (asset?.startOffset ?? 0);
+    if (assetDuration !== undefined && assetPlayout < assetDuration) {
+      dispatchEvent("adplayoutlimit", { view_ad_asset_id: asset?.identifier });
+    }
+  };
 
   // One break may contain multiple ad assets. INTERSTITIAL_ASSET_STARTED
   // fires per asset; view_ad_asset_id carries hls.js's internal identifier
@@ -358,12 +477,14 @@ export const setupHlsMonitoring = (
       const assetIndex = data?.assetListIndex;
       const breakId = breakEvent?.identifier ?? breakEvent?.dateRange?.id;
 
+      activeAssetPlayer = data?.player;
+
       // adplay, not adplaying. hls.js raises this when it selects and attaches
       // the asset player - bufferAssetPlayer runs after the trigger - so no
       // frame has rendered and none may ever. An ad sitting paused on its first
       // frame reaches here exactly the same. The impression is derived in
       // nucleusState, from the media element actually reporting playback.
-      dispatchEvent("adplay", {
+      dispatchAdEvent("adplay", {
         view_ad_break_id: breakId,
         view_ad_asset_id: assetId,
         view_ad_asset_index: assetIndex,
@@ -373,6 +494,8 @@ export const setupHlsMonitoring = (
         view_ad_asset_duration:
           asset?.duration > 0 ? toMilliseconds(asset.duration) : undefined,
       });
+
+      signalPlayoutCut(breakEvent, asset);
     },
   );
 
@@ -385,7 +508,10 @@ export const setupHlsMonitoring = (
       const asset = data?.asset ?? data?.assetItem;
       const breakEvent = data?.event;
 
-      dispatchEvent("adended", {
+      activeAssetPlayer = undefined;
+
+      signalPlayoutCut(breakEvent, asset);
+      dispatchAdEvent("adended", {
         view_ad_break_id: breakEvent?.identifier ?? breakEvent?.dateRange?.id,
         view_ad_asset_id: asset?.identifier,
         view_ad_asset_index: data?.assetListIndex,
@@ -426,10 +552,11 @@ export const setupHlsMonitoring = (
       // Correlates this request with the response that answers it. Timestamp
       // order is not enough: a pod fetch and a waterfall both put several
       // requests in flight at once, and the replies can come back interleaved.
-      dispatchEvent("adrequest", {
+      dispatchAdEvent("adrequest", {
         view_ad_break_id: breakId,
         view_ad_request_id: breakId,
         view_ad_tag_url: event?.assetListUrl,
+        ...breakFieldsOf(event),
       });
 
       // Preroll latency is the one a viewer reads as the video failing to
@@ -441,6 +568,19 @@ export const setupHlsMonitoring = (
     },
   );
 
+  // The break a list request belongs to, for the rows that precede its
+  // adbreakstart. hls.js fetches the list ahead of the break, so without these
+  // the request rows would carry the previous break's position and offset.
+  const breakFieldsOf = (event: any) => ({
+    view_ad_break_position: breakPositionOf(event?.cue),
+    view_ad_time_offset: toMilliseconds(event?.startOffset),
+    view_ad_duration:
+      event?.duration > 0 ? toMilliseconds(event.duration) : undefined,
+    view_ad_asset_hostname: event?.assetListUrl
+      ? getHostName(event.assetListUrl)
+      : undefined,
+  });
+
   // Closes the request. The pair gives ad server latency at the backend
   // without the SDK computing a duration of its own.
   const handleAssetListLoaded = guard(
@@ -450,9 +590,10 @@ export const setupHlsMonitoring = (
       const breakId = event?.identifier ?? event?.dateRange?.id;
       const assets = data?.assetListResponse?.ASSETS;
 
-      dispatchEvent("adresponse", {
+      dispatchAdEvent("adresponse", {
         view_ad_break_id: breakId,
         view_ad_request_id: breakId,
+        ...breakFieldsOf(event),
         // Zero is a no-fill, which is a different thing from an error and
         // needs to be visible as one.
         view_ad_response_count: Array.isArray(assets)
@@ -471,7 +612,7 @@ export const setupHlsMonitoring = (
       const breakId = breakEvent?.identifier ?? breakEvent?.dateRange?.id;
       const errorDetails = data?.error?.message ?? data?.details;
 
-      dispatchEvent("aderror", {
+      dispatchAdEvent("aderror", {
         view_ad_break_id: breakId,
         view_ad_asset_id: assetId,
         view_ad_asset_index: data?.assetListIndex,
@@ -487,6 +628,60 @@ export const setupHlsMonitoring = (
       });
     },
   );
+
+  // The break's asset list itself failed: the URL 404ed, timed out, did not
+  // parse, or one of its entries was unusable. hls.js reports these through
+  // ERROR with these details, not through a dedicated event, and it fetches
+  // lists ahead of the break - so when the list fails the break is often
+  // skipped and never opens. Without this a break whose list never loaded
+  // showed as nothing at all. If no break is open the failure is wrapped in
+  // its own adbreakstart and adbreakend, so the engine settles it as a break
+  // that failed rather than losing it.
+  const assetListErrorDetails = new Set(
+    [
+      hlsPlayer.ErrorDetails?.ASSET_LIST_LOAD_ERROR,
+      hlsPlayer.ErrorDetails?.ASSET_LIST_LOAD_TIMEOUT,
+      hlsPlayer.ErrorDetails?.ASSET_LIST_PARSING_ERROR,
+      hlsPlayer.ErrorDetails?.INTERSTITIAL_ASSET_ITEM_ERROR,
+    ].filter((name) => typeof name === "string"),
+  );
+
+  const handleAssetListError = (data: any) => {
+    const interstitial = data?.interstitial;
+    const breakId =
+      interstitial?.identifier ?? interstitial?.dateRange?.id ?? "break";
+    const wrapInBreak = openBreakId !== breakId;
+
+    if (wrapInBreak) {
+      openBreakId = breakId;
+      dispatchAdEvent("adbreakstart", {
+        view_ad_break_id: breakId,
+        view_ad_break_position: breakPositionOf(interstitial?.cue),
+        view_ad_time_offset: toMilliseconds(interstitial?.startOffset),
+        view_ad_asset_hostname: data?.url ? getHostName(data.url) : undefined,
+      });
+    }
+
+    dispatchAdEvent("aderror", {
+      view_ad_break_id: breakId,
+      view_ad_tag_url: data?.url ?? interstitial?.assetListUrl,
+      view_ad_error_source: "hlsjs",
+      view_ad_error_code: data?.details,
+      view_ad_error_message:
+        data?.error?.message ??
+        (data?.response?.code
+          ? `Asset list request failed (status ${data.response.code})`
+          : undefined) ??
+        data?.reason ??
+        String(data?.details),
+      view_ad_error_fatal: data?.error?.fatal ?? data?.fatal,
+    });
+
+    if (wrapInBreak) {
+      openBreakId = undefined;
+      dispatchAdEvent("adbreakend", {});
+    }
+  };
 
   const handleFragmentAborted = (
     canceledEvent: any,
@@ -530,6 +725,13 @@ export const setupHlsMonitoring = (
       event,
       err,
     } = data;
+
+    // An ad failure, not a content one: reported through the ad path and kept
+    // out of the view's player error and request failure fields.
+    if (assetListErrorDetails.has(errorDetails)) {
+      handleAssetListError(data);
+      return;
+    }
 
     const errorUrl = frag?.url ?? url ?? "";
     const errorContext = [
@@ -658,6 +860,10 @@ export const setupHlsMonitoring = (
           handleInterstitialAssetError,
         );
       }
+      videoContainer.removeEventListener?.("timeupdate", handleAdProgressTick);
+      videoContainer.removeEventListener?.("play", handleFirstPlay);
+      heldAdEvents.length = 0;
+      activeAssetPlayer = undefined;
       hlstag.off(
         hlsPlayer.Events.DESTROYING,
         videoContainer.fp?.destroyHlsMonitoring,
@@ -665,6 +871,11 @@ export const setupHlsMonitoring = (
       delete videoContainer.fp?.destroyHlsMonitoring;
     };
   }
+
+  // The ad's progress rides the element's own timeupdate; nothing fires unless
+  // an asset player is held, so this costs nothing outside a break.
+  videoContainer?.addEventListener?.("timeupdate", handleAdProgressTick);
+  videoContainer?.addEventListener?.("play", handleFirstPlay);
 
   // Attach event listeners
   hlstag.on(hlsPlayer.Events.MANIFEST_LOADED, handleManifestLoaded);

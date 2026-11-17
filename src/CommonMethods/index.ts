@@ -456,7 +456,59 @@ const utilityMethods = {
   now: timestamp.now,
 };
 
+// Ad URLs carry signed tokens, viewer identifiers, and targeting parameters in
+// the query, the fragment, the userinfo, and sometimes a path segment. Only
+// scheme, host, and path leave the SDK, and a path segment that looks like a
+// token is masked. Written with a regex rather than URL so it behaves the same
+// in React Native, where URL.pathname throws on older versions.
+const TOKEN_SEGMENT = /^[A-Za-z0-9_-]{32,}$|^[A-Za-z0-9+/]{32,}={0,2}$/;
+
+const redactUrl = (value: any): string | undefined => {
+  if (typeof value !== "string" || value.length === 0) {
+    return undefined;
+  }
+
+  const match =
+    /^([a-z][a-z0-9+.-]*:\/\/)(?:[^@/?#]*@)?([^/?#]*)([^?#]*)/i.exec(value);
+
+  if (!match) {
+    // Relative or opaque; keep nothing that could be a token
+    return value.split(/[?#]/)[0];
+  }
+
+  const [, scheme, host, path] = match;
+  const safePath = path
+    .split("/")
+    .map((segment) => (TOKEN_SEGMENT.test(segment) ? "[redacted]" : segment))
+    .join("/");
+
+  return `${scheme}${host}${safePath}`;
+};
+
+// Redact before truncating. Cutting first can leave a complete token inside
+// the cap; redacting first replaces every URL in the text, then the cap applies.
+const AD_ERROR_MESSAGE_CAP = 256;
+
+const sanitizeErrorMessage = (value: any): string | undefined => {
+  if (typeof value !== "string" || value.length === 0) {
+    return undefined;
+  }
+
+  // Closing brackets and trailing punctuation belong to the sentence, not the
+  // URL: hls.js writes "... (http://host/list.json)" and the paren must survive.
+  const redacted = value.replace(
+    /[a-z][a-z0-9+.-]*:\/\/[^\s"'<>()\]]+/gi,
+    (url) => redactUrl(url) ?? "",
+  );
+
+  return redacted.length > AD_ERROR_MESSAGE_CAP
+    ? redacted.slice(0, AD_ERROR_MESSAGE_CAP)
+    : redacted;
+};
+
 export {
+  redactUrl,
+  sanitizeErrorMessage,
   getHostAndDomainName,
   getDomainName,
   getHostName,

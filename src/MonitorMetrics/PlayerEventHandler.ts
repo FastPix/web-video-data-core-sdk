@@ -13,7 +13,7 @@ import {
   updateViewerCookie,
 } from "../CookieMethod/index";
 import { EventMetaData, ActionableDataTypes } from "../DataType/index";
-import { buildUUID } from "../IdGenerationMethod/index";
+import { buildUUID, randomFraction } from "../IdGenerationMethod/index";
 import { ConnectionHandler } from "../ConnectionHandler/index";
 import { formatEventData } from "../SplitDataParameters/index";
 
@@ -84,7 +84,16 @@ const videoStateKeys = new Set([
   "player_language_code",
   "view_dropped_frame_count",
 ]);
-const eventHandler = new Set(["viewBegin", "error", "ended", "viewCompleted"]);
+// Events that flush the queue immediately rather than riding the ten second
+// batch. aderror is here because an ad failure often precedes the viewer
+// leaving, and a row still in the queue when the tab closes is lost.
+const eventHandler = new Set([
+  "viewBegin",
+  "error",
+  "ended",
+  "viewCompleted",
+  "aderror",
+]);
 let previousVideoState: any = {};
 
 export class PlaybackEventHandler {
@@ -120,7 +129,12 @@ export class PlaybackEventHandler {
       this.actionableData,
     );
     this.previousBeaconData = null;
-    const canAccessDocument = document !== undefined;
+    // typeof, not a bare comparison: in React Native and Node `document` is
+    // never declared, and reading an undeclared identifier throws. 1.0.7 had
+    // the typeof form; 1.0.9 and 1.1.0 regressed it and broke configure() off
+    // the browser.
+    const canAccessDocument = typeof document !== "undefined";
+    const canAccessWindow = typeof window !== "undefined";
     this.sdkPageDetails = {
       viewer_connection_type: getNetworkConnection(),
       viewer_connection_speed: getNetworkSpeed(),
@@ -130,10 +144,10 @@ export class PlaybackEventHandler {
       viewer_timezone_name: getTimezoneName(),
       viewer_browser_width: window?.innerWidth,
       viewer_browser_height: window?.innerHeight,
-      page_url: window === undefined ? "" : window?.location?.href,
+      page_url: canAccessWindow ? window?.location?.href : "",
       page_title: canAccessDocument ? document.title : "",
       page_referrer_url: canAccessDocument ? document.referrer : "",
-      page_site_domain: window === undefined ? "" : window?.location?.hostname,
+      page_site_domain: canAccessWindow ? window?.location?.hostname : "",
     };
 
     this.userData =
@@ -206,7 +220,9 @@ export class PlaybackEventHandler {
 
   prepareEventData(event: string, obj: EventMetaData) {
     const cookieSessionData =
-      this.disableCookies || document === undefined ? {} : this.updateCookies();
+      this.disableCookies || typeof document === "undefined"
+        ? {}
+        : this.updateCookies();
 
     const data = mergeObjects(
       this.sdkPageDetails,
@@ -258,6 +274,21 @@ export class PlaybackEventHandler {
           }
         });
       }
+
+      // Every ad row carries the whole ad context, the same way request rows
+      // carry every request_* key. The backend can then read any single ad
+      // row without reconstructing the break from earlier rows.
+      if (eventname.startsWith("ad")) {
+        Object.entries(dataobj).forEach(([key, value]: [string, any]) => {
+          if (
+            key.startsWith("view_ad_") ||
+            key === "view_is_ad_playing" ||
+            key === "view_has_ad"
+          ) {
+            clonedObj[key] = value;
+          }
+        });
+      }
       this.previousBeaconData = clonedObj;
     }
 
@@ -301,7 +332,7 @@ export class PlaybackEventHandler {
         session_expiry_time: number | string;
       }
     | {} {
-    if (document === undefined) return {};
+    if (typeof document === "undefined") return {};
 
     const data: any = getViewerData();
     const cookieTimer = Date.now();
@@ -313,7 +344,7 @@ export class PlaybackEventHandler {
       data.fpsanu === "undefined"
     ) {
       data.fpviid = buildUUID();
-      data.fpsanu = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+      data.fpsanu = randomFraction();
     }
 
     if (

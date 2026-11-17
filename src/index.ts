@@ -233,7 +233,43 @@ const fastpixMetrix = {
       .defaultPlaybackRate;
 
     userData.fetchPlayheadTime = function () {
+      // During an HLS interstitial the ad plays through this same element, so
+      // currentTime is the ad's own position, not the content's, and for a
+      // moment after the break it is zero while hls.js re-attaches the content.
+      // The interstitials manager keeps the primary (content) timeline
+      // separately and it is the content position at all times, so it is
+      // preferred whenever hls.js exposes it.
+      const primaryTime = hlstag?.interstitialsManager?.primary?.currentTime;
+      if (typeof primaryTime === "number" && Number.isFinite(primaryTime)) {
+        return Math.floor(1e3 * primaryTime);
+      }
       return Math.floor(1e3 * (videoContainer as HTMLVideoElement).currentTime);
+    };
+
+    // What the element itself is playing right now, ad or content. The stall
+    // detector needs this one: during an interstitial the content position
+    // above stands still by design, and reading it as "playback is stuck"
+    // reported every ad as one long rebuffer.
+    userData.fetchMediaTime = function () {
+      return Math.floor(1e3 * (videoContainer as HTMLVideoElement).currentTime);
+    };
+
+    // Whether the engine itself still considers a break open. The idle
+    // watchdog asks this before closing a break on its own: an ad stalled on a
+    // slow network can go 30 s without a signal while hls.js is still inside
+    // it, and closing then turns the rest of the ad into content rows.
+    // undefined where the player has no such notion, and the watchdog is then
+    // on its own as before.
+    userData.fetchAdBreakOpen = function (): boolean | undefined {
+      const manager = hlstag?.interstitialsManager;
+      if (!manager) {
+        return undefined;
+      }
+      // The schedule's items include the content itself, so a bare
+      // playingItem means nothing; an interstitial item carries its event.
+      // bufferingItem is not consulted: hls.js pre-buffers the next break
+      // while content plays, which would read as "in a break" too early.
+      return !!(manager.playingItem?.event || manager.playingAsset);
     };
 
     userData.fetchStateData = function () {
@@ -382,9 +418,8 @@ const fastpixMetrix = {
             ) {
               return;
             }
-            browserObj.player_error_code = (
-              videoContainer as HTMLVideoElement
-            ).error?.code;
+            browserObj.player_error_code = (videoContainer as HTMLVideoElement)
+              .error?.code;
             browserObj.player_error_message =
               browserErrors[(videoContainer as any).error?.code] ??
               (videoContainer as HTMLVideoElement).error?.message;

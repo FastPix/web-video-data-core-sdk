@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FastPix Data — HLS.js</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+      video { width: 100%; background: #000; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>HLS.js + FastPix Data</h1>
+    <p>Cross-browser HLS via hls.js. Pass both the instance (<code>hlsjs</code>) and the constructor (<code>Hls</code>).</p>
+
+    <video id="video-player" controls playsinline></video>
+    <!-- Skip button: the player UI's job, not hls.js's. Shown while an ad plays,
+         enabled after the asset list's SKIP-CONTROL offset (if any). -->
+    <button id="skip-ad" hidden style="margin-top: 8px">Skip ad</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+    <script src="/dist/index.js"></script>
+    <script>
+      const video = document.getElementById("video-player");
+      const src = "https://devstreaming-cdn.apple.com/videos/streaming/examples/interstitial-sample/mvp_interstitial_sample.m3u8";
+     // const src= "https://stream.fastpix.com/7c8d5087-edf7-462f-a1b3-e2fbd30747fa.m3u8";
+     // const src= "test/ad-long.m3u8";                 // 60 s preroll + 120 s midroll
+    // const src = "test/ad-fastpix.m3u8";                 // Apple content, FastPix stream as a 100 s midroll at 30 s
+
+      if (window.Hls && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(video);
+
+        window.fastpixMetrix.tracker(video, {
+          debug: true,
+          configDomain: "anlytix.app",
+          hlsjs: hls, // instance
+          Hls: Hls, // constructor -> player_software_name becomes "hls.js Player"
+          data: {
+            workspace_id: "1064076622050623491",
+            player_name: "HTML5 HLS.js Player",
+            player_init_time: window.fastpixMetrix.utilityMethods.now(),
+            video_title: "FastPix Sample (hls.js)",
+            video_id: "sample-hlsjs",
+          },
+        });
+
+        // // --- Skip ad -------------------------------------------------------
+        // // 1. The manifest says whether skipping is allowed (X-RESTRICT="SKIP"
+        // //    forbids it) and the asset list may give a SKIP-CONTROL offset.
+        // // 2. This page draws the button and calls hls.interstitialsManager.skip().
+        // // 3. The SDK is told first with video.fp.dispatch("adskipped"); hls.js
+        // //    has no skip event and would otherwise report the ad as completed.
+        // const skipButton = document.getElementById("skip-ad");
+        // const skipOffsets = {}; // break id -> SKIP-CONTROL.OFFSET seconds
+        // let skipTimer;
+
+        // hls.on(Hls.Events.ASSET_LIST_LOADED, (_e, data) => {
+        //   const offset = data?.assetListResponse?.["SKIP-CONTROL"]?.OFFSET;
+        //   if (typeof offset === "number") skipOffsets[data.event.identifier] = offset;
+        // });
+
+        // hls.on(Hls.Events.INTERSTITIAL_ASSET_STARTED, (_e, data) => {
+        //   const event = data.event;
+        //   clearInterval(skipTimer);
+        //   if (event.restrictions?.skip) { skipButton.hidden = true; return; } // X-RESTRICT="SKIP"
+        //   const offset = skipOffsets[event.identifier] ?? 0;
+        //   skipButton.hidden = false;
+        //   const tick = () => {
+        //     const remaining = Math.ceil(offset - (data.player?.currentTime ?? 0));
+        //     skipButton.disabled = remaining > 0;
+        //     skipButton.textContent = remaining > 0 ? `Skip ad in ${remaining}` : "Skip ad";
+        //   };
+        //   tick();
+        //   skipTimer = setInterval(tick, 250);
+        // });
+
+        // hls.on(Hls.Events.INTERSTITIALS_PRIMARY_RESUMED, () => {
+        //   clearInterval(skipTimer);
+        //   skipButton.hidden = true;
+        // });
+
+        // skipButton.onclick = () => {
+        //   video.fp.dispatch("adskipped");
+        //   hls.interstitialsManager.skip();
+        // };
+      } else {
+        // Safari falls back to native HLS — see native-hls.html
+        video.src = src;
+      }
+    </script>
+  </body>
+</html>

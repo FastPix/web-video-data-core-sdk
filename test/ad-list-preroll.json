@@ -1,0 +1,30 @@
+{
+  "ASSETS": [
+    {
+      "URI": "/test/ad-asset-20s.m3u8",
+      "DURATION": 19.953,
+      "X-AD-ID": "nimbus-cola-20s",
+      "X-CREATIVE-ID": "cr-1001",
+      "X-AD-SYSTEM": "FastPix Demo Ads",
+      "X-ADVERTISER": "Nimbus Cola",
+      "X-TITLE": "Taste the Lightning",
+      "X-DOMAIN": "nimbuscola.example",
+      "X-CLICK-URL": "https://example.com/nimbus"
+    },
+    {
+      "URI": "/test/ad-asset-30s.m3u8",
+      "DURATION": 29.963,
+      "X-AD-ID": "trailpack-30s",
+      "X-CREATIVE-ID": "cr-1002",
+      "X-AD-SYSTEM": "FastPix Demo Ads",
+      "X-ADVERTISER": "Trailpack",
+      "X-TITLE": "Back To School 2026",
+      "X-DOMAIN": "trailpack.example",
+      "X-CLICK-URL": "https://example.com/trailpack"
+    }
+  ],
+  "SKIP-CONTROL": {
+    "OFFSET": 5,
+    "DURATION": 60
+  }
+}

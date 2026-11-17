@@ -501,6 +501,10 @@ export const setupDashMonitoring = (
     durationMs?: number;
     hostname?: string;
     index: number;
+    // Where this ad period starts on the presentation timeline, in seconds,
+    // which is what the media element's currentTime counts in. Position inside
+    // the ad is currentTime minus this.
+    startS: number;
   }
 
   interface AdBreak {
@@ -681,6 +685,9 @@ export const setupDashMonitoring = (
     // after a fifteen second preroll would read 75s where the viewer saw it at
     // 60s - and the same break on HLS would report 60s.
     let contentElapsedS = 0;
+    // Presentation time, which unlike contentElapsedS does include the earlier
+    // ad periods; it is the clock the media element runs on
+    let presentationElapsedS = 0;
     let current: AdBreak | undefined;
     const contentFollows = periods.map((_, index) =>
       periods
@@ -689,6 +696,9 @@ export const setupDashMonitoring = (
     );
 
     periods.forEach((period, index) => {
+      const periodStartS = presentationElapsedS;
+      presentationElapsedS += period.durationS;
+
       if (period.assetId === contentAssetId) {
         contentElapsedS += period.durationS;
         current = undefined;
@@ -714,6 +724,7 @@ export const setupDashMonitoring = (
           period.durationS > 0 ? Math.round(1e3 * period.durationS) : undefined,
         hostname: period.hostname,
         index: current.assets.length,
+        startS: periodStartS,
       };
 
       current.assets.push(asset);
@@ -834,8 +845,35 @@ export const setupDashMonitoring = (
     }
   });
 
+  // Ad progress for the quartile check: the element's presentation time minus
+  // the ad period's start, over the period's duration. Nothing fires unless an
+  // ad period is on screen.
+  const handleAdProgressTick = () => {
+    if (!openAsset || !(openAsset.durationMs! > 0)) {
+      return;
+    }
+
+    const currentTime = videoContainer?.currentTime;
+    if (typeof currentTime !== "number" || !Number.isFinite(currentTime)) {
+      return;
+    }
+
+    const position = currentTime - openAsset.startS;
+    if (position < 0) {
+      return;
+    }
+
+    dispatchEvent("adprogress", {
+      position,
+      duration: openAsset.durationMs! / 1e3,
+    });
+  };
+
+  videoContainer?.addEventListener?.("timeupdate", handleAdProgressTick);
+
   if (videoContainer?.fp) {
     videoContainer.fp.destroyDashMonitoring = () => {
+      videoContainer.removeEventListener?.("timeupdate", handleAdProgressTick);
       dashTag.off("manifestLoaded", handleManifestForAds);
       dashTag.off("periodSwitchCompleted", handlePeriodSwitch);
       dashTag.off("streamActivated", handlePeriodSwitch);

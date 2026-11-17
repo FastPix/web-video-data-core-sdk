@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0]
+
+### Added
+- **Ad events as beacons.** `adbreakstart`, `adplay`, `adplaying`, `adpause`, `adended`, `aderror`, `adbreakend`, and `adskipped` are now sent as rows. Every ad row carries the full `view_ad_*` context and the cumulative ad counters, the same way request rows carry every `request_*` key. `adplaying` is the SDK-observed first frame and is counted once per ad; a second `adplaying` for the same ad after an `adpause` is the resume. `aderror` is an occurrence, not a terminal: failures are still settled when the break closes, so an ad that errored and then played counts as no failure.
+- **`adpause`**, derived from the media element's `pause` while an ad that has rendered is still in progress.
+- **Quartile events** `adfirstquartile`, `admidpoint`, `adthirdquartile`, once per ad attempt. On hls.js and dash.js they are inferred from the ad's own playhead and fire only when playback progresses through the threshold: a seek past a threshold fires nothing, a pause or stall never re-fires one. Wrappers forward their ad SDK's native quartile callbacks under the same names; a wrapper report and an engine crossing of the same threshold produce one row. No new wire keys or counters.
+- **Asset-list failures** (`ASSET_LIST_LOAD_ERROR`, `ASSET_LIST_LOAD_TIMEOUT`, `ASSET_LIST_PARSING_ERROR`, `INTERSTITIAL_ASSET_ITEM_ERROR`) now raise `aderror`; previously a break whose list never loaded reported no error.
+- **`aderror` flushes immediately**, like `error`, so an ad failure right before the viewer leaves is not lost in the batch.
+- **Ad URL and error-text redaction.** `view_ad_asset_url`, `view_ad_tag_url`, and `view_ad_click_url` keep scheme, host, and path only, with token-like path segments masked; `view_ad_error_message` has embedded URLs redacted and is capped at 256 characters.
+
+### Changed
+- **Break watchdog is progress based.** A break times out after 30 s with no ad activity or playhead movement, with a hard ceiling of four times the scheduled duration, instead of a fixed multiple of the scheduled duration. A long pause inside an ad no longer trips it. When it fires, `adbreakend` is emitted so the row exists.
+- **`player_playhead_time` stays at the content position during an HLS interstitial**, read from `interstitialsManager.primary`; previously it reported the ad's own position.
+- **`view_is_ad_playing` is false on the `adbreakend` row** and is documented as "ad mode active", not evidence that a frame rendered.
+- **Per-asset ad fields are cleared** when a break opens and closes, so a later break's `adbreakstart` no longer carries the previous ad's identity.
+- **`view_preroll_load_time`** is measured from the later of break open and first `play`, so click-to-play idle time is no longer counted as ad load time.
+- `player_fastpix_sdk_version` now reports the package version (it had been fixed at 1.0.5).
+
+### Fixed
+- `configure()` threw `ReferenceError: document is not defined` outside a browser (React Native, Node) because of a bare `document !== undefined` check. Restored the `typeof` guards from 1.0.7 and applied the same to the two `window` reads.
+
 ## [1.1.0]
 
 ### Added

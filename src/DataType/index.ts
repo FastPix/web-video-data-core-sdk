@@ -1,3 +1,26 @@
+// Terminal state of one ad attempt. "failed" is the only one that counts as
+// an error; everything else is a way an ad can end without the ad server
+// being at fault.
+export type AdOutcome =
+  | "completed"
+  | "failed"
+  | "skipped"
+  | "canceled"
+  | "abandoned"
+  | "timed_out"
+  | "unknown";
+
+// Why a break closed.
+export type AdBreakEndReason =
+  | "completed"
+  | "failed"
+  | "skipped"
+  | "playout_limit"
+  | "canceled"
+  | "view_ended"
+  | "timed_out"
+  | "no_fill";
+
 interface EventsInterface {
   beacon_domain: string;
   event_name: string;
@@ -185,6 +208,24 @@ interface EventsInterface {
   view_ad_break_error_count?: number;
   // Viewer abandoned the view during a break before any ad played
   view_ad_exit_before_start_count?: number;
+
+  // How one ad attempt ended. Written on the attempt's terminal row (adended,
+  // adskipped); attempts settled at break or view end carry no row of their
+  // own and are described by the counters below. Exactly one per attempt.
+  view_ad_outcome?: AdOutcome;
+  // Why the break closed, on adbreakend. Not whether every ad in it
+  // succeeded: a break that ran its schedule with one failed ad is
+  // "completed" with view_ad_break_error_count 1.
+  view_ad_break_end_reason?: AdBreakEndReason;
+  // Per-outcome counters, cumulative per view. With view_ad_complete_count
+  // and view_ad_error_count (failed) they satisfy, on every row:
+  // attempts = complete + error + skip + canceled + abandoned + timed_out +
+  // unknown + attempts still open.
+  view_ad_skip_count?: number;
+  view_ad_canceled_count?: number;
+  view_ad_abandoned_count?: number;
+  view_ad_timed_out_count?: number;
+  view_ad_unknown_count?: number;
 
   // Preroll fill and latency. requested comes from the manifest schedule, so
   // it is true even for a preroll that never fills - the pair is a fill rate.
@@ -393,6 +434,12 @@ interface EventMetaData extends Partial<EventsInterface>, UserCustomDataType {
     video_source_stream_protocol: string | undefined;
   };
   fetchPlayheadTime?: () => number;
+  // The element's own position in milliseconds, ad or content. Optional: when
+  // absent, stall detection falls back to the content playhead.
+  fetchMediaTime?: () => number;
+  // Whether the engine still has an ad break open. Optional: the idle
+  // watchdog defers to it when present, and closes on its own when absent.
+  fetchAdBreakOpen?: () => boolean | undefined;
   data?: EventData;
   automaticErrorTracking?: boolean;
   Hls?: any;
@@ -409,6 +456,8 @@ interface ActionableDataTypes {
   configDomain?: string;
   actionableData?: any;
   fetchPlayheadTime?: () => any;
+  fetchMediaTime?: () => any;
+  fetchAdBreakOpen?: () => boolean | undefined;
   fetchStateData?: () => any;
   automaticErrorTracking?: boolean;
   data?: EventData;
