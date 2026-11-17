@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.2.0]
+## [1.1.1]
 
 ### Added
 - **Ad events as beacons.** `adbreakstart`, `adplay`, `adplaying`, `adpause`, `adended`, `aderror`, `adbreakend`, and `adskipped` are now sent as rows. Every ad row carries the full `view_ad_*` context and the cumulative ad counters, the same way request rows carry every `request_*` key. `adplaying` is the SDK-observed first frame and is counted once per ad; a second `adplaying` for the same ad after an `adpause` is the resume. `aderror` is an occurrence, not a terminal: failures are still settled when the break closes, so an ad that errored and then played counts as no failure.
